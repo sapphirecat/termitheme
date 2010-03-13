@@ -1,0 +1,7 @@
+syntax:regexp
+^[^/]+.py
+
+syntax:glob
+test.*
+*.pyc
+*.pyo
