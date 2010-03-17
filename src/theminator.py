@@ -1,6 +1,23 @@
 #vim600:fdm=marker
 
+# Implemented plan steps:
+# 1. IO class-specific data store (an iostore) on TerminalProfile: `with
+# profile.ioslave('gnome-terminal') as d` will let an io-class use its private
+# dict within that block.
+#
+# Remaining plan is this...
+# 2. make GT-IO store everything not in THEME_KEYS into its iostore. this
+# brings THEME_KEYS back into style.
+# 3. GT-IO should also start knowing about visible_name (ignore on read, write
+# profile.name to it on write) and palette, now that it has
+# _set_colors_from_palette() and _get_palette_from_profile().
+# and that may be it, before we can get on to real import/export, then putty!
+# and konsole! and world domination!
+#
+
+from contextlib import contextmanager
 import gconf
+import re
 import sys
 
 # -- gconf value boxing/unboxing -- {{{1
@@ -66,6 +83,42 @@ def gconf_box (v, is_pair=False):
     else:
         gv = _gconf_box_primitive(v)
     return gv
+#}}}1
+
+
+# -- color conversion -- {{{1
+
+_c24_re = re.compile('^#?' + (3 * '([0-9a-f]{2})') + '$', re.I)
+_c48_re = re.compile('^#?' + (3 * '([0-9a-f]{4})') + '$', re.I)
+
+def color24 (c48):
+    """Convert a 48-bit color to the closest possible 24-bit color."""
+
+    m = _c48_re.match(c48)
+    if m is None:
+        raise ValueError("Invalid 48-bit color '%s'" % c48)
+    c24 = '#'
+    for hexval in m.groups():
+        byte = round(int(hexval, 16)/256, 0)
+        if byte > 255:
+            byte = 255
+        elif byte < 0:
+            byte = 0
+        c24 += '%02x' % byte
+    return c24
+
+def color48 (c24):
+    """Convert a 24-bit color to a 48-bit color."""
+
+    c24 = c24.lstrip('#')
+    if len(c24) != 6:
+        raise ValueError("24-bit color '%s' has unexpected length" % c24)
+    c48 = []
+    for b in range(3):
+        v = c24[2*b:2*b+2]
+        c48.append(v + v)
+    return '#' + (''.join(c48))
+
 #}}}1
 
 
@@ -212,111 +265,82 @@ class GnomeTerminalIO (object):
             if path.endswith(tail):
                 return name
         raise ValueError("Default name does not have a path mapping.")
+
+    def _set_colors_from_palette (self, profile, palette):
+        colors = [color24(i) for i in palette.split(":")]
+        if len(colors) < 16:
+            raise ValueError("Palette does not contain enough colors.")
+        for i in range(16):
+            profile["color%d" % i] = colors[i]
+
+    def _get_palette_from_profile (self, profile):
+        pal = [color48(profile["color%d" % i]) for i in range(16)]
+        return ":".join(pal)
+
 #}}}1
 
 
 # TODO: Theme file IO (and format)
 
 
-# -- gnome-terminal profile data structure -- {{{1
+# -- generic terminal profile data structure -- {{{1
 # This is smarter than a dict for future support of PuTTY themes.
 
 class TerminalProfile (dict):
     """Generic terminal theme."""
 
-    # Keys that take special
-    _propmap = {
-        'palette': 'palette',
-        'visible_name': 'name',
-    }
+    PROFILE_KEY_NAMES = [
+        # common (plus color0 through color15)
+        'background_color',
+        'cursor_shape',
+        'font',
+        'foreground_color',
+        # gnome-terminal
+        'use_system_font',
+        'allow_bold',
+        # PuTTY's cursor color, etc.? Konsole?
+    ].extend(["color%d" % i for i in range(16)])
 
     def __init__ (self, name):
-        self._values = dict()
+        self._valid_keys = set(self.PROFILE_KEY_NAMES)
         self._name = name
+        self.io_data = {}
 
-    # -- properties -- {{{2
-    def get_palette (self):
-        """Gnome-terminal compatible palette handling.
-
-        Automatically translates to/from the color<N> keys."""
-
-        pal = [self._c48(self["color"+str(i)]) for i in range(16)]
-        return ":".join(pal)
-
-    def set_palette (self, v):
-        colors = [self._c24(i) for i in v.split(":")]
-        for i in range(16):
-            self["color%d" % i] = colors[i]
-
-    palette = property(get_palette, set_palette)
-
-    # Hack: visible_name is 'the name', which is immutable
+    @property
     def get_name (self):
         """Visible name of the profile. Immutable."""
         return self._name
-    def set_name (self, ignored):
-        pass
-    name = property(get_name, set_name)
 
-    #}}}2
-    # -- private methods -- {{{2
-    def _c24 (self, c48):
-        """Convert a 48-bit color to the closest possible 24-bit color."""
+    def is_valid_key (self, k):
+        """Return True if k is a TerminalProfile key."""
+        return k in self._valid_keys
 
-        c48 = c48.lstrip('#')
-        if len(c48) != 12:
-            raise ValueError("48-bit color '%s' has unexpected length" % c48)
-        c24 = []
-        for b in range(3):
-            byte = round(int(c48[4*b:4*b+4], 16)/256, 0)
-            if byte > 255:
-                byte = 255
-            elif byte < 0:
-                byte = 0
-            c24.append(byte)
-        return '#' + (''.join(["%02x" % i for i in c24]))
+    @contextmanager
+    def ioslave (self, slave_name):
+        if slave_name not in self._io_data:
+            self._io_data[slave_name] = {}
+        yield self._io_data[slave_name]
 
-    def _c48 (self, c24):
-        """Convert a 24-bit color to a 48-bit color."""
+    def __getitem__ (self, k):
+        if k not in self._valid_keys:
+            raise KeyError(self._bad_key(k))
+        return dict.__getitem__(self, k)
 
-        c24 = c24.lstrip('#')
-        if len(c24) != 6:
-            raise ValueError("24-bit color '%s' has unexpected length" % c24)
-        c48 = []
-        for b in range(3):
-            v = c24[2*b:2*b+2]
-            c48.append(v + v)
-        return '#' + (''.join(c48))
+    def __setitem__ (self, k, v):
+        if k not in self._valid_keys:
+            raise KeyError(self._bad_key(k))
+        return dict.__setitem__(self, k, v)
 
-    #}}}2
-    # -- public API -- {{{2
+    def __delitem__ (self, k):
+        if k not in self._valid_keys:
+            raise KeyError(self._bad_key(k))
+        return dict.__delitem__(self, k)
+
     def __str__ (self):
         return "<TerminalProfile %s>" % self.name
 
-    def update (self, other):
-        # Prevent activating the magical keys on update
-        if not isinstance(other, TerminalProfile):
-            raise TypeError("update() requires TerminalProfile argument")
-        dict.update(self, other)
-
-    def __getitem__ (self, k):
-        if k in self._propmap:
-            return getattr(self, self._propmap[k])
-        else:
-            return dict.__getitem__(self, k)
-
-    def __setitem__ (self, k, v):
-        if k in self._propmap:
-            return setattr(self, self._propmap[k], v)
-        else:
-            return dict.__setitem__(self, k, v)
-
-    def __delitem__ (self, k):
-        if k not in self._propmap:
-            dict.__delitem__(self, k)
-        else:
-            raise KeyError("Virtual key '%s' cannot be deleted." % k)
-    #}}}2
+    def _bad_key (self, k):
+        return "Key '%s' is not a valid TerminalProfile key." % k
 
 #}}}1
 
