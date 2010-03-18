@@ -1,37 +1,44 @@
 #vim600:fdm=marker
 
-# Implemented plan steps:
-# 1. IO class-specific data store (an iostore) on TerminalProfile: `with
-# profile.ioslave('gnome-terminal') as d` will let an io-class use its private
-# dict within that block.
-#
 # Remaining plan is this...
-# 2. make GT-IO store everything not in THEME_KEYS into its iostore. this
-# brings THEME_KEYS back into style.
-# 3. GT-IO should also start knowing about visible_name (ignore on read, write
-# profile.name to it on write) and palette, now that it has
-# _set_colors_from_palette() and _get_palette_from_profile().
-# and that may be it, before we can get on to real import/export, then putty!
-# and konsole! and world domination!
-#
+# get on to real import/export, then putty! and konsole! and world
+# domination!
 
 from contextlib import contextmanager
 import gconf
 import re
 import sys
 
-# -- gconf value boxing/unboxing -- {{{1
+#{{{1 GConf value boxing/unboxing
 # (aka "the way it was meant to be in a dynamic language")
 # You can use get_$TYPE if you know _a priori_ what type the key you're getting
 # is. Otherwise gconf_unbox(client.get(...)) will do its best.
+# Schema values are not supported because they're both weird and useless.
 
-def _gconf_unbox_primitive (v):
-    m = getattr(v, 'get_' + v.type.value_nick)
-    return m()
+def _gconf_unbox_primitive (v): #{{{
+    """Returns a Python value for the given gconf.Value.
 
-def _gconf_box_primitive (v, gtype=None):
+    Raises TypeError if the value is not a primitive (bool/int/float/string)
+    type."""
+
+    try:
+        m = getattr(v, 'get_' + v.type.value_nick)
+        return m()
+    except AttributeError:
+        raise TypeError("GConf type is not primitive: %s" %
+                        v.type.value_nick)
+    #}}}
+
+def _gconf_box_primitive (v, gtype=None): #{{{
+    """Finds the gconf type and creates a gconf.Value for it.
+
+    If gtype is present, it should be the type of a list, and the type of v
+    MUST match gtype, otherwise TypeError is raised. TypeError is raised if
+    the value is not a primitive (bool/int/float/string) gconf type."""
+
     # NOTE: order matters here, as bool < float < int! So if int is checked
     # first, all bool and float parameters are converted to int.
+    # This may be a Python2-ism
     if isinstance(v, basestring):
         t = gconf.VALUE_STRING
     elif isinstance(v, bool):
@@ -53,8 +60,13 @@ def _gconf_box_primitive (v, gtype=None):
     m = getattr(gv, 'set_' + gv.type.value_nick)
     m(v)
     return gv
+    #}}}
 
-def gconf_unbox (v):
+def gconf_unbox (v): #{{{
+    """Convert any non-schema/non-invalid GConf type to a Python value.
+
+    The unsupported types will be returned as None."""
+
     if v is None:
         return None
     nick = v.type.value_nick
@@ -67,8 +79,15 @@ def gconf_unbox (v):
         return [_gconf_unbox_primitive(i) for i in v.get_list()]
     else:
         return _gconf_unbox_primitive(v)
+    #}}}
 
-def gconf_box (v, is_pair=False):
+def gconf_box (v, is_pair=False): #{{{
+    """Convert a Python value to a GConf value.
+
+    If is_pair is True, a 2-element sequence will be set as a GConf pair.
+    Otherwise, all list/tuple sequences become a list value. The GConf
+    schema type is not supported."""
+
     if is_pair:
         if len(v) != 2:
             raise ValueError("Pair value is not actually a pair of items.")
@@ -76,6 +95,7 @@ def gconf_box (v, is_pair=False):
         gv.set_car(_gconf_box_primitive(v[0]))
         gv.set_cdr(_gconf_box_primitive(v[1]))
     elif isinstance(v, (list, tuple)):
+        # This boxes v[0] twice, but it is way easier.
         v0 = _gconf_box_primitive(v[0])
         gv = gconf.Value(gconf.VALUE_LIST)
         gv.set_list_type(v0.type)
@@ -83,15 +103,16 @@ def gconf_box (v, is_pair=False):
     else:
         gv = _gconf_box_primitive(v)
     return gv
+    #}}}
 #}}}1
 
 
-# -- color conversion -- {{{1
+#{{{1 Color conversion
 
 _c24_re = re.compile('^#?' + (3 * '([0-9a-f]{2})') + '$', re.I)
 _c48_re = re.compile('^#?' + (3 * '([0-9a-f]{4})') + '$', re.I)
 
-def color24 (c48):
+def color24 (c48): #{{{
     """Convert a 48-bit color to the closest possible 24-bit color."""
 
     m = _c48_re.match(c48)
@@ -106,8 +127,9 @@ def color24 (c48):
             byte = 0
         c24 += '%02x' % byte
     return c24
+    #}}}
 
-def color48 (c24):
+def color48 (c24): #{{{
     """Convert a 24-bit color to a 48-bit color."""
 
     c24 = c24.lstrip('#')
@@ -118,11 +140,12 @@ def color48 (c24):
         v = c24[2*b:2*b+2]
         c48.append(v + v)
     return '#' + (''.join(c48))
+    #}}}
 
 #}}}1
 
 
-# -- gnome-terminal gconf value handling -- {{{1
+#{{{1 Gnome-terminal GConf value handling
 # Possible future directions: PuttyIO, KonsoleIO
 
 class MockGConf (object):
@@ -143,24 +166,27 @@ class GnomeTerminalIO (object):
     PROFILE_NAME = '/visible_name'
     # future: handle background_{darkness|image|type} as well
     # major problem: where to put the bg image when importing
-    # FIXME: this has fallen out of use :-(
-    THEME_KEYS = ['background_color',
-                  'cursor_shape',
-                  'font',
-                  'foreground_color',
-                  'palette',
-                  'scroll_background',
-                  'use_system_font',
-                  'visible_name']
+    # value of None means "no translation" and is replaced in __init__
+    THEME_KEYS = {'allow_bold': None,
+                  'background_color': 'bgcolor',
+                  'cursor_shape': None,
+                  'font': None,
+                  'foreground_color': 'fgcolor',
+                  'use_system_font': 'force_font'}
     # use_theme_colors: "Use colors from system theme"
     STD_KEYS = [('use_theme_colors', False)]
 
-    def __init__ (self, gconf_client=None):
+    _slavename = 'gnome-terminal' # given to profile.ioslave(...)
+
+    def __init__ (self, gconf_client=None): #{{{
+        # Translate None values in THEME_KEYS to actual values
+        # Use list() to make sure we have a copy, not an iterator
+        for k, v in list(self.THEME_KEYS.items()):
+            if v is None:
+                self.THEME_KEYS[k] = k
+
         # initialize gconf
-        if gconf_client is None:
-            c = gconf.client_get_default()
-        else:
-            c = gconf_client
+        c = gconf_client if gconf_client else gconf.client_get_default()
         self._gconf = c
 
         # initialize visible-name => gconf-profile-root-path mapping
@@ -179,13 +205,13 @@ class GnomeTerminalIO (object):
 
         # initialize misc. junk for extensibility
         self._profile_ctor = TerminalProfile
+        #}}}
 
     def profile_names (self):
         """Return a list of all defined profile names."""
-
         return self._path_of.keys()
 
-    def read_profile (self, name=None):
+    def read_profile (self, name=None): # {{{
         """Read the given profile, or the default one if no name is given."""
 
         if name is None:
@@ -201,18 +227,26 @@ class GnomeTerminalIO (object):
         if not c.dir_exists(path[:-1]):
             raise ValueError("Profile named '%s' has no gconf tree at %s." %
                              (name, path))
-        # Duplicate ALL gnome-terminal settings instead of letting "non-theme"
-        # settings revert to their defaults.
-        for e in c.all_entries(path[:-1]):
-            k = self._relative_key(e.get_key())
-            p[k] = gconf_unbox(e.get_value())
+        # Duplicate ALL gnome-terminal settings so that non-theme settings
+        # won't revert to their defaults in write_profile.
+        with p.ioslave(self._slavename) as private_data:
+            theme = self.THEME_KEYS
+            for e in c.all_entries(path[:-1]):
+                k = self._relative_key(e.get_key())
+                v = gconf_unbox(e.get_value())
+                if k in theme:
+                    p[theme[k]] = v
+                else:
+                    private_data[k] = v
+            self._set_colors_from_palette(p, private_data['palette'])
         return p
+        #}}}
 
-    def write_profile (self, profile):
+    def write_profile (self, profile): #{{{
         """Write the profile to gconf."""
 
         if profile.name in self._path_of:
-            # Modiied profile: save into current path
+            # Modified profile: save into current path
             path = self._path_of[name]
             dir = path[:-1]
             save_path = False
@@ -231,12 +265,17 @@ class GnomeTerminalIO (object):
         #c=MockGConf()
         for k, v in self.STD_KEYS: # defaults for making the theme take hold
             c.set(path + k, gconf_box(v))
-        # FIXME: This has to properly interpret TerminalProfile
-        for k, v in profile.items():
-            # FIXME: "is not None" still relevant w/ c.all_entries()?
-            if v is not None and not k.startswith("color"):
+        # Common theme keys
+        for k, k_prof in self.THEME_KEYS.items():
+            if k_prof in profile:
+                c.set(path + k, gconf_box(profile[k_prof]))
+        # Private keys (copied from default profile)
+        with profile.ioslave(self._slavename) as private_data:
+            for k, v in private_data.items():
                 c.set(path + k, gconf_box(v))
-        c.set_string(path + 'palette', profile.palette)
+        # Special keys
+        c.set_string(path + 'palette',
+                     self._get_palette_from_profile(profile))
         c.set_string(path + 'visible_name', profile.name)
 
         if isinstance(c, MockGConf):
@@ -250,7 +289,9 @@ class GnomeTerminalIO (object):
         if base_dir not in plst:
             plst.append(base_dir)
             c.set_list(self.PROFILE_LIST, gconf.VALUE_STRING, plst)
+        #}}}
 
+    #{{{ Internal interfaces
     def _relative_key (self, abs_key):
         base_pos = abs_key.rfind('/') + 1
         return abs_key[base_pos:]
@@ -276,38 +317,41 @@ class GnomeTerminalIO (object):
     def _get_palette_from_profile (self, profile):
         pal = [color48(profile["color%d" % i]) for i in range(16)]
         return ":".join(pal)
+    #}}}
 
 #}}}1
 
 
-# TODO: Theme file IO (and format)
+#{{{1 TODO: Theme file IO (and format)
+#}}}
 
 
-# -- generic terminal profile data structure -- {{{1
-# This is smarter than a dict for future support of PuTTY themes.
+#{{{1 Generic terminal profile data structure
+# This is smarter than a dict for future support of PuTTY/Konsole themes.
 
 class TerminalProfile (dict):
     """Generic terminal theme."""
 
-    PROFILE_KEY_NAMES = [
+    PROFILE_KEY_NAMES = ["color%d" % i for i in range(16)]
+    PROFILE_KEY_NAMES.extend([
         # common (plus color0 through color15)
-        'background_color',
+        'bgcolor',
         'cursor_shape',
         'font',
-        'foreground_color',
+        'fgcolor',
         # gnome-terminal
-        'use_system_font',
+        'force_font',
         'allow_bold',
         # PuTTY's cursor color, etc.? Konsole?
-    ].extend(["color%d" % i for i in range(16)])
+    ])
 
     def __init__ (self, name):
         self._valid_keys = set(self.PROFILE_KEY_NAMES)
         self._name = name
-        self.io_data = {}
+        self._io_data = {}
 
     @property
-    def get_name (self):
+    def name (self):
         """Visible name of the profile. Immutable."""
         return self._name
 
@@ -317,9 +361,26 @@ class TerminalProfile (dict):
 
     @contextmanager
     def ioslave (self, slave_name):
+        """Give a reference to a slave-private dict to a block.
+        
+        Example: with profile.ioslave("konsole") as d: d['foo']='bar'"""
         if slave_name not in self._io_data:
             self._io_data[slave_name] = {}
         yield self._io_data[slave_name]
+
+    #{{{ Dictionary interface
+    def update (self, other):
+        """Copy other's dictionary keys and ioslave data into self."""
+
+        if not isinstance(other, TerminalProfile):
+            raise TypeError("update requires a TerminalProfile")
+        # Copy private data
+        for k in other._io_data.keys():
+            if k in self._io_data:
+                self._io_data[k].update(other._io_data[k])
+            else:
+                self._io_data[k] = other._io_data[k]
+        return dict.update(self, other)
 
     def __getitem__ (self, k):
         if k not in self._valid_keys:
@@ -335,6 +396,7 @@ class TerminalProfile (dict):
         if k not in self._valid_keys:
             raise KeyError(self._bad_key(k))
         return dict.__delitem__(self, k)
+    #}}}
 
     def __str__ (self):
         return "<TerminalProfile %s>" % self.name
