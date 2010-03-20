@@ -5,7 +5,7 @@ clean:
 	rm *.py
 	find . -name '*.py[co]' -exec rm '{}' \;
 
-%.py: src/HEADER src/theminator.py src/%.py
+%.py: src/HEADER src/libtermitheme.py src/%.py
 	cat $^ >$@
 	chmod +x $@
 
