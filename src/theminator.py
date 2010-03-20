@@ -147,6 +147,16 @@ def color48 (c24): #{{{
     return '#' + (''.join(c48))
     #}}}
 
+def is_color24 (c):
+    if isinstance(c, basestring) and _c24_re.match(c):
+        return True
+    return False
+
+def is_color48 (c):
+    if isinstance(c, basestring) and _c48_re.match(c):
+        return True
+    return False
+
 #}}}1
 
 
@@ -157,6 +167,12 @@ class MockGConf (object):
     def set (self, k, v):
         self._print(k, gconf_unbox(v))
     def set_string (self, k, v):
+        self._print(k, v)
+    def set_bool (self, k, v):
+        self._print(k, v)
+    def set_float (self, k, v):
+        self._print(k, v)
+    def set_int (self, k, v):
         self._print(k, v)
     def _print (self, k, v):
         print "SET: %s = %s" % (k, repr(v))
@@ -239,11 +255,14 @@ class GnomeTerminalIO (object):
             for e in c.all_entries(path[:-1]):
                 k = self._relative_key(e.get_key())
                 v = gconf_unbox(e.get_value())
+                if is_color48(v):
+                    v = color24(v)
                 if k in theme:
                     p[theme[k]] = v
                 else:
                     private_data[k] = v
             self._set_colors_from_palette(p, private_data['palette'])
+            del private_data['palette']
         return p
         #}}}
 
@@ -268,16 +287,20 @@ class GnomeTerminalIO (object):
         # Write all our keys to that profile dir
         path = dir + '/'
         #c=MockGConf()
-        for k, v in self.STD_KEYS: # defaults for making the theme take hold
-            c.set(path + k, gconf_box(v))
         # Common theme keys
         for k, k_prof in self.THEME_KEYS.items():
             if k_prof in profile:
-                c.set(path + k, gconf_box(profile[k_prof]))
+                val = profile[k_prof]
+                if is_color24(val):
+                    val = color48(val)
+                c.set(path + k, gconf_box(val))
         # Private keys (copied from default profile)
         with profile.ioslave(self._slavename) as private_data:
             for k, v in private_data.items():
                 c.set(path + k, gconf_box(v))
+        # defaults for making the theme take hold (must overwrite ioslave)
+        for k, v in self.STD_KEYS: 
+            c.set(path + k, gconf_box(v))
         # Special keys
         c.set_string(path + 'palette',
                      self._get_palette_from_profile(profile))
@@ -483,6 +506,19 @@ class TerminalProfile (dict):
 
     def _bad_key (self, k):
         return "Key '%s' is not a valid TerminalProfile key." % k
+
+#}}}1
+
+
+#{{{1 Shared handling helpers for import/export
+
+def p_err (str):
+    print >>sys.stderr, str
+
+def usage (error_msg):
+    p_err(error_msg)
+    p_err("Use --help for details.")
+    sys.exit(2)
 
 #}}}1
 

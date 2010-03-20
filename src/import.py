@@ -14,14 +14,6 @@ def parse_args (argv):
 
     return p.parse_args(argv[1:])
 
-def p_err (str):
-    print >>sys.stderr, str
-
-def usage (error_msg):
-    p_err(error_msg)
-    p_err("Use --help for details.")
-    sys.exit(2)
-
 def main (argv=None, filename=None):
     if not (argv or filename):
         usage("A filename is required, either through argv or filename.")
@@ -45,7 +37,7 @@ def main (argv=None, filename=None):
             dst = io.read_profile(opts.base)
             base = opts.base
         except:
-            p_error("The base theme %s does not exist." % opts.base)
+            p_err("The base theme %s does not exist." % opts.base)
             sys.exit(1)
 
     try:
