@@ -1,7 +1,9 @@
 all: import.py export.py
 
 clean:
+	touch rm-fodder.py
 	rm *.py
+	find . -name '*.py[co]' -exec rm '{}' \;
 
 %.py: src/HEADER src/theminator.py src/%.py
 	cat $^ >$@
