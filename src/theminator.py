@@ -358,7 +358,7 @@ class GnomeTerminalIO (object):
 # file, whose keys/values are exactly what TerminalProfile is.
 #
 # theme.ini, of course, is just an INI file like so...
-# [TheminatorV1]
+# [Termitheme1]
 # key=value
 # key=value
 #
@@ -403,12 +403,12 @@ class ThemeFile (object):
     def read_profile (self, parser):
         profile_class = self._profile_ctor
         try:
-            name = parser.get('TheminatorV1', 'name')
+            name = parser.get('Termitheme1', 'name')
             p = profile_class(name)
         except ConfigParser.NoOptionError:
             raise KeyError("Theme file does not have a 'name' key.")
 
-        for k, v in parser.items('TheminatorV1'):
+        for k, v in parser.items('Termitheme1'):
             if k == 'name': # special key
                 continue
 
@@ -425,7 +425,7 @@ class ThemeFile (object):
     def write (self, profile):
         """Write the profile into self.filename."""
 
-        lines = ["[TheminatorV1]\n", "name = %s\n" % profile.name]
+        lines = ["[Termitheme1]\n", "name = %s\n" % profile.name]
         for k,v in profile.items():
             lines.append("%s = %s\n" % (k, v))
 
