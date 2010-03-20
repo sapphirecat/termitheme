@@ -5,9 +5,14 @@
 # domination!
 
 from contextlib import contextmanager
+import ConfigParser
 import gconf
+import optparse
+import os.path
 import re
+import StringIO # Python2.5 compatible hackery
 import sys
+import zipfile
 
 #{{{1 GConf value boxing/unboxing
 # (aka "the way it was meant to be in a dynamic language")
@@ -323,6 +328,84 @@ class GnomeTerminalIO (object):
 
 
 #{{{1 TODO: Theme file IO (and format)
+#
+# OK, the file format is somewhat easy.
+#
+# arbitraryname.zip{theme.ini,referenced-bg-image.*}
+#
+# Where referenced-bg-image is not read/written in this initial version
+# (where would we unpack it to?)
+#
+# theme.ini, of course, is just an INI file like so...
+# [TheminatorV1]
+# key=value
+# key=value
+#
+# This way, everything can be handled with zipfile and ConfigParser.
+#
+
+class ThemeFile (object):
+    filename = None
+
+    _autotype_defs = [
+        (re.compile(r'^t', re.I), lambda x: True),
+        (re.compile(r'^f', re.I), lambda x: False),
+        (re.compile(r'^\d+$'), lambda x: int(x, 10)),
+        (re.compile(r'^\d*\.\d+(?:e\d+)?$', re.I), lambda x: float(x)),
+    ]
+
+    def __init__ (self, filename, profile_class=None):
+        self.filename = filename
+        if not profile_class:
+            profile_class = TerminalProfile
+        self._profile_ctor = profile_class
+
+    def read_open (self):
+        """Return a ConfigParser associated with the theme file."""
+
+        # Open zipfile and validate expected theme.ini file found
+        zf = zipfile.ZipFile(self.filename, 'r') # can raise IOError
+        # Python2.5 doesn't have ZipFile.open(), and ConfigParser doesn't
+        # have any way to read directly from a string.
+        fp = StringIO.StringIO(zf.read('theme.ini')) # can raise KeyError
+        zf.close()
+
+        cp = ConfigParser.RawConfigParser()
+        cp.readfp(fp)
+        return cp
+
+    def read_profile (self, parser):
+        profile_class = self._profile_ctor
+        try:
+            name = parser.get('TheminatorV1', 'name')
+            p = profile_class(name)
+        except ConfigParser.NoOptionError:
+            raise KeyError("Theme file does not have a 'name' key.")
+
+        for k, v in parser.items('TheminatorV1'):
+            if k == 'name':
+                continue
+
+            # the autotyper makes this O(N^2) but there's no other way to
+            # get booleans into gconf as real booleans
+            p[k] = self._autotype(v)
+
+        return p
+
+    def read (self):
+        """Read the theme file in self.filename and return a profile."""
+        return self.read_profile(self.read_open())
+
+    def write (self, profile):
+        """Write the profile into self.filename."""
+        pass
+
+    def _autotype (self, val):
+        for re, fn in self._autotype_defs:
+            if re.match(val):
+                return fn(val)
+        return val
+
 #}}}
 
 
@@ -345,15 +428,12 @@ class TerminalProfile (dict):
         # PuTTY's cursor color, etc.? Konsole?
     ])
 
+    name = None
+
     def __init__ (self, name):
         self._valid_keys = set(self.PROFILE_KEY_NAMES)
-        self._name = name
+        self.name = name
         self._io_data = {}
-
-    @property
-    def name (self):
-        """Visible name of the profile. Immutable."""
-        return self._name
 
     def is_valid_key (self, k):
         """Return True if k is a TerminalProfile key."""
