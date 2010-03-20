@@ -6,12 +6,14 @@
 
 from contextlib import contextmanager
 import ConfigParser
+import datetime
 import gconf
 import optparse
 import os.path
 import re
 import StringIO # Python2.5 compatible hackery
 import sys
+import time
 import zipfile
 
 #{{{1 GConf value boxing/unboxing
@@ -350,21 +352,22 @@ class GnomeTerminalIO (object):
 #}}}1
 
 
-#{{{1 TODO: Theme file IO (and format)
+#{{{1 Theme file IO
 #
-# OK, the file format is somewhat easy.
-#
-# arbitraryname.zip{theme.ini,referenced-bg-image.*}
-#
-# Where referenced-bg-image is not read/written in this initial version
-# (where would we unpack it to?)
+# The file format is intentionally simple: a zip file containing a theme.ini
+# file, whose keys/values are exactly what TerminalProfile is.
 #
 # theme.ini, of course, is just an INI file like so...
 # [TheminatorV1]
 # key=value
 # key=value
 #
-# This way, everything can be handled with zipfile and ConfigParser.
+# This way, everything can be handled with zipfile and ConfigParser; and
+# when we get to figuring out where to unpack a background-image, the image
+# can be neatly added to the theme zip without changing the overall format.
+#
+# As such, this version is designed not to care about extra files in the zip
+# archive.
 #
 
 class ThemeFile (object):
@@ -406,10 +409,10 @@ class ThemeFile (object):
             raise KeyError("Theme file does not have a 'name' key.")
 
         for k, v in parser.items('TheminatorV1'):
-            if k == 'name':
+            if k == 'name': # special key
                 continue
 
-            # the autotyper makes this O(N^2) but there's no other way to
+            # the autotyper makes this O(M*N) but there's no other way to
             # get booleans into gconf as real booleans
             p[k] = self._autotype(v)
 
@@ -421,7 +424,25 @@ class ThemeFile (object):
 
     def write (self, profile):
         """Write the profile into self.filename."""
-        pass
+
+        lines = ["[TheminatorV1]\n", "name = %s\n" % profile.name]
+        for k,v in profile.items():
+            lines.append("%s = %s\n" % (k, v))
+
+        info = zipfile.ZipInfo()
+        info.filename = 'theme.ini'
+        # whoever designed this api is ridiculous
+        now = datetime.datetime.fromtimestamp(time.time())
+        info.date_time = (now.year, now.month, now.day,
+                          now.hour, now.minute, now.second)
+        info.compress_type = zipfile.ZIP_DEFLATED
+        info.external_attr = 0644 << 16L # thank you bug 3394 (swarren)
+
+        if os.path.exists(self.filename):
+            raise ValueError("File '%s' exists." % self.filename)
+        zf = zipfile.ZipFile(self.filename, 'w')
+        zf.writestr(info, ''.join(lines))
+        zf.close()
 
     def _autotype (self, val):
         for re, fn in self._autotype_defs:

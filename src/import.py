@@ -5,7 +5,8 @@
 # settings. This, too, can be overridden with the -b option.
 
 def parse_args (argv):
-    p = optparse.OptionParser(prog=os.path.basename(argv[0]))
+    p = optparse.OptionParser(prog=os.path.basename(argv[0]),
+                              usage='%prog [options] filename')
 
     p.add_option("-b", "--base", dest="base", metavar="PROFILE",
                  help="Base on PROFILE instead of the default profile")
@@ -52,14 +53,14 @@ def main (argv=None, filename=None):
         dst.name = opts.name if opts.name else src.name
     except Exception, e:
         p_err("Error copying theme into profile:")
-        p_err("\t%s" % e.message)
+        p_err("\t%s" % e)
         sys.exit(1)
 
     try:
         io.write_profile(dst)
     except Exception, e:
         p_err("Error writing new profile to gconf:")
-        p_err("\t%s" % e.message)
+        p_err("\t%s" % e)
         sys.exit(1)
 
     print "Saved theme '%s' as '%s' (based on %s)" % (src.name,
