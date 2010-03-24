@@ -275,7 +275,7 @@ class GnomeTerminalIO (object):
 
         if profile.name in self._path_of:
             # Modified profile: save into current path
-            path = self._path_of[name]
+            path = self._path_of[profile.name]
             dir = path[:-1]
             save_path = False
         else:
