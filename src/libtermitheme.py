@@ -192,6 +192,8 @@ class GnomeTerminalIO (object):
     # value of None means "no translation" and is replaced in __init__
     THEME_KEYS = {'allow_bold': None,
                   'background_color': 'bgcolor',
+                  'bold_color': 'fgbold',
+                  'bold_color_same_as_fg': 'use_fgbold',
                   'cursor_shape': None,
                   'font': None,
                   'foreground_color': 'fgcolor',
@@ -466,9 +468,11 @@ class TerminalProfile (dict):
         'cursor_shape',
         'font',
         'fgcolor',
+        'fgbold',
         # gnome-terminal
         'force_font',
         'allow_bold',
+        'use_fgbold',
         # PuTTY's cursor color, etc.? Konsole?
     ])
 
