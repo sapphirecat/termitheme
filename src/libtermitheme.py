@@ -277,6 +277,7 @@ class GnomeTerminalIO (object):
     def write_profile (self, profile): #{{{
         """Write the profile to gconf."""
 
+        c = self._gconf
         if profile.name in self._path_of:
             # Modified profile: save into current path
             path = self._path_of[profile.name]
@@ -284,7 +285,6 @@ class GnomeTerminalIO (object):
             save_path = False
         else:
             # New profile: get next unused profile number
-            c = self._gconf
             i = self._max_profile + 1
             dir = self.PROFILE_ROOT + '/Profile' + str(i)
             while c.dir_exists(dir):
