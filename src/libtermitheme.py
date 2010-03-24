@@ -236,6 +236,10 @@ class GnomeTerminalIO (object):
         """Return a list of all defined profile names."""
         return self._path_of.keys()
 
+    def profile_exists (self, name):
+        """Return whether the named profile exists."""
+        return name in self._path_of
+
     def read_profile (self, name=None): # {{{
         """Read the given profile, or the default one if no name is given."""
 

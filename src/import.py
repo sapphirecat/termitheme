@@ -12,6 +12,8 @@ def parse_args (argv):
                  help="Base on PROFILE instead of the default profile")
     p.add_option("-n", "--name", dest="name", metavar="NAME",
                  help="Name the newly created profile NAME")
+    p.add_option("-o", "--overwrite", dest="overwrite", action="store_true",
+                 help="Allow overwriting/updating an existing profile")
 
     return p.parse_args(argv[1:])
 
@@ -48,9 +50,15 @@ def main (argv=None, filename=None):
         p_err("Theme file %s does not seem to be valid." % filename)
         sys.exit(1)
 
+    dst_name = opts.name if opts.name else src.name
+    if io.profile_exists(dst_name) and not opts.overwrite:
+        p_err("The theme '%s' exists and --overwrite was not given." %
+              dst_name)
+        sys.exit(1)
+
     try:
         dst.update(src)
-        dst.name = opts.name if opts.name else src.name
+        dst.name = dst_name
     except Exception, e:
         p_err("Error copying theme into profile:")
         p_err("\t%s" % e)
