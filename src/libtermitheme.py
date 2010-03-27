@@ -1,13 +1,9 @@
 #vim600:fdm=marker
 
-# Remaining plan is this...
-# get on to real import/export, then putty! and konsole! and world
-# domination!
-
+# BATTERIES INCLUDED
 from contextlib import contextmanager
 import ConfigParser
 import datetime
-import gconf
 import optparse
 import os.path
 import re
@@ -15,6 +11,30 @@ import StringIO # Python2.5 compatible hackery
 import sys
 import time
 import zipfile
+
+# PLATFORM SUPPORT
+# Unfortunately, I don't see a way to detect whether these are available,
+# short of importing the module whether we'll use them or not.
+# TODO: Do something more sensible for PuTTY on Linux...
+
+try:
+    import gconf
+except ImportError:
+    gconf = None
+
+try:
+    import _winreg
+except ImportError:
+    _winreg = None
+
+# Exhaustive list of all types we support, along with their implementing
+# classes. None for now; we'll fill this in after the classes are defined.
+_term_support = {
+    'gnome': None,
+    'putty': None,
+}
+
+
 
 #{{{1 GConf value boxing/unboxing
 # (aka "the way it was meant to be in a dynamic language")
@@ -548,6 +568,37 @@ def usage (error_msg):
     p_err(error_msg)
     p_err("Use --help for details.")
     sys.exit(2)
+
+#}}}1
+
+
+class PuttyIO:
+    pass
+
+
+#{{{1 Terminal switching code
+
+if gconf:
+    _term_support['gnome'] = GnomeTerminalIO
+if _winreg:
+    _term_support['putty'] = PuttyIO
+
+def get_terminal_io (termname, wrapper=None):
+    """Get the IO class corresponding to termname.
+
+    If wrapper is provided, it should be a function accepting the class, and
+    returning a TerminalIO object."""
+
+    if termname not in _term_support:
+        raise KeyError("Unknown terminal type: '%s'" % termname)
+    elif not _term_support[termname]:
+        raise ValueError("Terminal type is not supported on this platform.")
+
+    ctor = _term_support[termname]
+    if wrapper:
+        return wrapper(ctor)
+    else:
+        return ctor()
 
 #}}}1
 
