@@ -38,48 +38,89 @@ _term_support = {
 
 #{{{ Color conversion
 
-_c24_re = re.compile('^#?' + (3 * '([0-9a-f]{2})') + '$', re.I)
-_c48_re = re.compile('^#?' + (3 * '([0-9a-f]{4})') + '$', re.I)
+def _init_color_re (): #{{{
+    def xdigits (len):
+        return '([0-9a-f]{%d})' % len
 
-def color24 (c48): #{{{
-    """Convert a 48-bit color to the closest possible 24-bit color."""
+    def decbyte ():
+        return '(2(?:5[0-5]|[0-4][0-9])|1?[0-9]{1,2})'
 
-    m = _c48_re.match(c48)
+    dec_core = [decbyte() for i in range(3)]
+    dec_str = r',\s*'.join(dec_core)
+
+    return {
+        '24': re.compile('^#?' + (3 * xdigits(2)) + '$', re.I),
+        '48': re.compile('^#?' + (3 * xdigits(4)) + '$', re.I),
+        '24dec': re.compile('^' + dec_str + '$'),
+    }
+
+#}}}
+_color_re = _init_color_re()
+
+def parse_color24 (color): #{{{
+    m = _color_re['24'].match(color)
     if m is None:
-        raise ValueError("Invalid 48-bit color '%s'" % c48)
-    c24 = '#'
-    for hexval in m.groups():
-        byte = round(int(hexval, 16)/256, 0)
-        if byte > 255:
-            byte = 255
-        elif byte < 0:
-            byte = 0
-        c24 += '%02x' % byte
-    return c24
-    #}}}
+        raise ValueError("Invalid 24-bit hex color '%s'" % color)
+    return [int(h, 16) for h in m.groups()]
 
-def color48 (c24): #{{{
-    """Convert a 24-bit color to a 48-bit color."""
+def parse_color48 (color):
+    m = _color_re['48'].match(color)
+    if m is None:
+        raise ValueError("Invalid 48-bit hex color '%s'" % color)
+    return [int(h, 16) // 256 for h in m.groups()]
 
-    c24 = c24.lstrip('#')
-    if len(c24) != 6:
-        raise ValueError("24-bit color '%s' has unexpected length" % c24)
-    c48 = []
-    for b in range(3):
-        v = c24[2*b:2*b+2]
-        c48.append(v + v)
-    return '#' + (''.join(c48))
-    #}}}
+def parse_color24dec (color):
+    m = _color_re['24dec'].match(color)
+    if m is None:
+        raise ValueError("Invalid 24-bit decimal color '%s'" % color)
+    return [int(d, 10) for d in m.groups()] #}}}
 
-def is_color24 (c): #{{{
-    if isinstance(c, basestring) and _c24_re.match(c):
+def to_color24 (color): #{{{
+    if len(color) != 3:
+        raise ValueError("Unexpected color length.")
+
+    rgb = ''.join(["%02x" % v for v in color])
+    return '#' + rgb
+
+def to_color48 (color):
+    if len(color) != 3:
+        raise ValueError("Unexpected color length.")
+
+    rgb = ''.join(["%02x%02x" % (v, v) for v in color])
+    return '#' + rgb
+
+def to_color24dec (color):
+    if len(color) != 3:
+        raise ValueError("Unexpected color length.")
+
+    return ','.join(["%d" % v for v in color]) #}}}
+
+def is_color24 (val): #{{{
+    if isinstance(val, basestring) and _color_re['24'].match(val):
+        return True
+    return False
+
+def is_color48 (val):
+    if isinstance(val, basestring) and _color_re['48'].match(val):
+        return True
+    return False
+
+def is_color24dec (val):
+    if isinstance(val, basestring) and _color_re['24dec'].match(val):
         return True
     return False #}}}
 
-def is_color48 (c): #{{{
-    if isinstance(c, basestring) and _c48_re.match(c):
-        return True
-    return False #}}}
+def parse_colorhex (color):
+    if len(color) > 7:
+        return parse_color48(color)
+    else:
+        return parse_color24(color)
+
+def is_color (val):
+    if isinstance(val, list) and len(val) == 3:
+        # test channel values
+        return all([0 <= ch <= 255 for ch in val])
+    return False
 
 #}}}
 
@@ -110,6 +151,8 @@ class ThemeFile (object):
         (re.compile(r'^f', re.I), lambda x: False),
         (re.compile(r'^\d+$'), lambda x: int(x, 10)),
         (re.compile(r'^\d*\.\d+(?:e\d+)?$', re.I), lambda x: float(x)),
+        (re.compile(r'^#(?:[0-9a-f]{6}){1,2}$', re.I),
+         lambda x: parse_colorhex(x)),
     ]
 
     def __init__ (self, filename, profile_class=None):
@@ -133,6 +176,8 @@ class ThemeFile (object):
         return cp
 
     def read_profile (self, parser):
+        """Populate a profile with the data from the parser."""
+
         profile_class = self._profile_ctor
         try:
             name = parser.get('Termitheme1', 'name')
@@ -497,7 +542,7 @@ class GnomeTerminalIO (TerminalIOBase):
                 k = self._relative_key(e.get_key())
                 v = gconf_unbox(e.get_value())
                 if is_color48(v):
-                    v = color24(v)
+                    v = parse_color48(v)
                 if k in theme:
                     p[theme[k]] = v
                 else:
@@ -532,8 +577,8 @@ class GnomeTerminalIO (TerminalIOBase):
         for k, k_prof in self.THEME_KEYS.items():
             if k_prof in profile:
                 val = profile[k_prof]
-                if is_color24(val):
-                    val = color48(val)
+                if is_color(val):
+                    val = to_color48(val)
                 c.set(path + k, gconf_box(val))
         # Private keys (copied from default profile)
         with profile.ioslave(self._slavename) as private_data:
@@ -577,14 +622,14 @@ class GnomeTerminalIO (TerminalIOBase):
         raise ValueError("Default name does not have a path mapping.")
 
     def _set_colors_from_palette (self, profile, palette):
-        colors = [color24(i) for i in palette.split(":")]
+        colors = [parse_color48(i) for i in palette.split(":")]
         if len(colors) < 16:
             raise ValueError("Palette does not contain enough colors.")
         for i in range(16):
             profile["color%d" % i] = colors[i]
 
     def _get_palette_from_profile (self, profile):
-        pal = [color48(profile["color%d" % i]) for i in range(16)]
+        pal = [to_color48(profile["color%d" % i]) for i in range(16)]
         return ":".join(pal)
     #}}}
 
