@@ -15,7 +15,7 @@ import zipfile
 # PLATFORM SUPPORT
 # Unfortunately, I don't see a way to detect whether these are available,
 # short of importing the module whether we'll use them or not.
-# TODO: Do something more sensible for PuTTY on Linux...
+# TODO: Check into supporting PuTTY on Linux
 
 try:
     import gconf
@@ -36,7 +36,7 @@ _term_support = {
 
 
 
-#{{{1 Color conversion
+#{{{ Color conversion
 
 _c24_re = re.compile('^#?' + (3 * '([0-9a-f]{2})') + '$', re.I)
 _c48_re = re.compile('^#?' + (3 * '([0-9a-f]{4})') + '$', re.I)
@@ -71,20 +71,20 @@ def color48 (c24): #{{{
     return '#' + (''.join(c48))
     #}}}
 
-def is_color24 (c):
+def is_color24 (c): #{{{
     if isinstance(c, basestring) and _c24_re.match(c):
         return True
-    return False
+    return False #}}}
 
-def is_color48 (c):
+def is_color48 (c): #{{{
     if isinstance(c, basestring) and _c48_re.match(c):
         return True
-    return False
+    return False #}}}
 
-#}}}1
+#}}}
 
 
-#{{{1 Theme file IO
+#{{{ Theme file IO
 #
 # The file format is intentionally simple: a zip file containing a theme.ini
 # file, whose keys/values are exactly what TerminalProfile is.
@@ -265,7 +265,7 @@ class TerminalProfile (dict):
 #}}}
 
 
-#{{{ Shared handling helpers for import/export
+#{{{ Shared handling helpers for import/export scripts
 
 def p_err (str):
     print >>sys.stderr, str
@@ -277,6 +277,8 @@ def usage (error_msg):
 
 #}}}
 
+
+#{{{ Terminal IO
 
 #{{{ IO base class
 
@@ -295,8 +297,6 @@ class TerminalIOBase (object):
 
 #}}}
 
-
-#{{{ IO: gnome-terminal + gconf
 
 #{{{ GConf value boxing/unboxing
 # (aka "the way it was meant to be in a dynamic language")
@@ -396,7 +396,7 @@ def gconf_box (v, is_pair=False): #{{{
 #}}}
 
 
-#{{{ Gnome-terminal profile handling
+#{{{ Gnome-terminal
 
 class MockGConf (object):
     def set (self, k, v):
@@ -590,13 +590,14 @@ class GnomeTerminalIO (TerminalIOBase):
 
 #}}}
 
-#}}}
 
 
-#{{{ IO: PuTTY + Windows registry
+#{{{ PuTTY + Windows registry
 
 class PuttyWinIO (TerminalIOBase):
     pass
+
+#}}}
 
 #}}}
 
