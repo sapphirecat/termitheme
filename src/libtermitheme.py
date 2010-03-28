@@ -154,6 +154,9 @@ class ThemeFile (object):
         (re.compile(r'^#(?:[0-9a-f]{6}){1,2}$', re.I),
          lambda x: parse_colorhex(x)),
     ]
+    _autotype_writer = [
+        (is_color, to_color24),
+    ]
 
     def __init__ (self, filename, profile_class=None):
         self.filename = filename
@@ -204,6 +207,10 @@ class ThemeFile (object):
 
         lines = ["[Termitheme1]\n", "name = %s\n" % profile.name]
         for k,v in profile.items():
+            # Again, this becomes O(M*N) but otherwise things break.
+            for predicate, action in self._autotype_writer:
+                if predicate(v):
+                    v = action(v)
             lines.append("%s = %s\n" % (k, v))
 
         info = zipfile.ZipInfo()
@@ -328,6 +335,9 @@ def usage (error_msg):
 #{{{ IO base class
 
 class TerminalIOBase (object):
+    def __init__ (self):
+        self._profile_ctor = TerminalProfile
+
     def profile_names (self):
         raise NotImplementedError("TerminalIOBase#profile_names")
 
@@ -482,6 +492,9 @@ class GnomeTerminalIO (TerminalIOBase):
     _slavename = 'gnome-terminal' # given to profile.ioslave(...)
 
     def __init__ (self, gconf_client=None): #{{{
+        # initialize parent
+        TerminalIOBase.__init__(self)
+
         # Translate None values in THEME_KEYS to actual values
         # Use list() to make sure we have a copy, not an iterator
         for k, v in list(self.THEME_KEYS.items()):
@@ -505,9 +518,6 @@ class GnomeTerminalIO (TerminalIOBase):
                     max_prof = int(name[7:])
         self._path_of = path
         self._max_profile = max_prof if max_prof else -1
-
-        # initialize misc. junk for extensibility
-        self._profile_ctor = TerminalProfile
         #}}}
 
     def profile_names (self):
@@ -636,12 +646,101 @@ class GnomeTerminalIO (TerminalIOBase):
 #}}}
 
 
-
 #{{{ PuTTY + Windows registry
 
 class PuttyWinIO (TerminalIOBase):
-    pass
+    SESSIONS_DIR = r'Software\SimonTatham\PuTTY\Sessions'
+    # XXX: FIGURE OUT THIS MAPPING
+    THEME_KEYS = {'BoldAsColour': ('allow_bold', int, bool),
+                  'Colour0': ('bgcolor',),
+                  #'Colour1': ('bgbold',),
+                  'Colour2': ('fgcolor',),
+                  'Colour3': ('fgbold',),
+                  #'Colour4': ('fgcursor',),
+                  #'Colour5': ('bgcursor',),
+                  'Colour6': ('color0',),
+                  'Colour7': ('color8',),
+                  'Colour8': ('color1',),
+                  'Colour9': ('color9',),
+                  'Colour10': ('color2',),
+                  'Colour11': ('color10',),
+                  'Colour12': ('color3',),
+                  'Colour13': ('color11',),
+                  'Colour14': ('color4',),
+                  'Colour15': ('color12',),
+                  'Colour16': ('color5',),
+                  'Colour17': ('color13',),
+                  'Colour18': ('color6',),
+                  'Colour19': ('color14',),
+                  'Colour20': ('color7',),
+                  'Colour21': ('color15',),
+                  'Font': ('font', None, None),
+                 }
+    STD_KEYS = [('UseSystemColours', 0)]
+    for k in THEME_KEYS.keys():
+        if k.startswith("Colour"):
+            THEME_KEYS[k] = (THEME_KEYS[k][0],
+                             parse_color24dec,
+                             to_color24dec)
 
+    _slavename = 'putty-win'
+
+    def profile_names (self):
+        return self._winreg_map(_winreg.EnumKey,
+                                self.SESSIONS_DIR)
+
+    def profile_exists (self, name):
+        try:
+            _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, _session_key(name))
+            return True
+        except WindowsError: # XXX: test - does missing key cause this?
+            return False
+
+    def read_profile (self, name=None):
+        if name is None:
+            raise ValueError("PuTTY has no default profile.")
+
+        try:
+            values = self._winreg_map(_winreg.EnumValue,
+                                      self._session_key(name))
+        except WindowsError:
+            raise KeyError("No profile named '%' exists." % name)
+
+        p = self._profile_ctor(name)
+        with p.ioslave(self._slavename) as private_data:
+            theme = self.THEME_KEYS
+            for k, v, t in values:
+                if k in theme:
+                    if theme[k][1]:
+                        read_fn = theme[k][1]
+                        v = read_fn(v)
+                    p[theme[k][0]] = v
+                else:
+                    private_data[k] = (v, t)
+        return p
+
+    def write_profile (self, profile):
+        raise NotImplementedError("PuttyWinIO#write_profile")
+
+    def _session_key (self, name):
+        return self.SESSIONS_DIR + '\\' + name
+
+    def _winreg_map (self, winreg_method, key, result_lambda=None):
+        if result_lambda is None:
+            result_lambda = lambda x: x
+        rv = []
+        h = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, key)
+        try:
+            i = 0
+            while True:
+                x = winreg_method(h, i)
+                rv.append(result_lambda(x))
+                i += 1
+        except WindowsError:
+            pass
+        finally:
+            h.Close()
+        return rv
 #}}}
 
 #}}}

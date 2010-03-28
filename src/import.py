@@ -31,7 +31,7 @@ def main (argv=None, filename=None):
     else:
         filename = args[0]
 
-    io = GnomeTerminalIO()
+    io = get_terminal_io(get_default_terminal()) # FIXME: -t/--terminal
     if not opts.base:
         dst = io.read_profile()
         base = "default profile"

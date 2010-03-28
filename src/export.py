@@ -29,7 +29,7 @@ def main (argv=None, profile=None, filename=None):
 
     profile_name, filename = args
 
-    io = GnomeTerminalIO()
+    io = get_terminal_io(get_default_terminal()) # FIXME: -t/--terminal
     try:
         dst = io.read_profile(profile_name)
         dst.name = real_name
