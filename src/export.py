@@ -5,8 +5,14 @@ def parse_args (argv):
     p = optparse.OptionParser(prog=os.path.basename(argv[0]),
                               usage='%prog [options] profile [filename]')
 
+    t_help = ("Export from terminal type TYPE (available types: %s)" %
+              ", ".join(terminal.supported_types()))
+
     p.add_option("-n", "--name", dest="name", metavar="NAME",
                  help="Set the profile name to NAME in the exported file")
+    p.add_option("-t", "--terminal", dest="terminal", metavar="TYPE",
+                 default=terminal.default_type,
+                 help=t_help)
 
     return p.parse_args(argv[1:])
 
@@ -29,7 +35,12 @@ def main (argv=None, profile=None, filename=None):
 
     profile_name, filename = args
 
-    io = get_terminal_io(get_default_terminal()) # FIXME: -t/--terminal
+    try:
+        io = terminal.get_io(opts.terminal)
+    except (KeyError, ValueError), e:
+        p_err(e.args[0])
+        sys.exit(2)
+
     try:
         dst = io.read_profile(profile_name)
         dst.name = real_name

@@ -27,14 +27,6 @@ try:
 except ImportError:
     _winreg = None
 
-# Exhaustive list of all types we support, along with their implementing
-# classes. None for now; we'll fill this in after the classes are defined.
-_term_support = {
-    'gnome': None,
-    'putty': None,
-}
-
-
 
 #{{{ Color conversion
 
@@ -748,40 +740,46 @@ class PuttyWinIO (TerminalIOBase):
 
 #{{{ Terminal switching code
 
+
+class _TerminalTypes (dict):
+    def _set_io (self, termname, io_class, set_default=False):
+        self[termname] = io_class
+        if set_default:
+            self.default_type = termname
+
+    def supports (self, termname):
+        """Return whether a terminal is supported on the current platform."""
+
+        return (termname in self and self[termname] is not None)
+
+    def supported_types (self):
+        """Return terminals actually supported on the current platform."""
+
+        return sorted([k for k, v in self.items() if v])
+
+    def get_io (self, termname, wrapper=None):
+        """Get the IO class corresponding to termname.
+
+        If wrapper is provided, it should be a function accepting the class,
+        and returning a TerminalIO object."""
+
+        if termname not in self:
+            raise KeyError("Unknown terminal type: '%s'" % termname)
+        elif not self[termname]:
+            raise ValueError("Terminal type is not supported on this " +
+                             "platform.")
+
+        ctor = self[termname]
+        if wrapper:
+            return wrapper(ctor)
+        else:
+            return ctor()
+
+terminal = _TerminalTypes(dict(gnome=None, putty=None))
 if gconf:
-    _term_support['gnome'] = GnomeTerminalIO
-    _default_term = 'gnome'
+    terminal._set_io('gnome', GnomeTerminalIO, True)
 if _winreg:
-    _term_support['putty'] = PuttyWinIO
-    _default_term = 'putty'
-
-
-def get_default_terminal ():
-    """Get the (platform-dependent) default terminal name."""
-
-    return _default_term
-
-def get_terminal_types ():
-    """Get all available terminal names for the current platform."""
-
-    return _term_support.keys()
-
-def get_terminal_io (termname, wrapper=None):
-    """Get the IO class corresponding to termname.
-
-    If wrapper is provided, it should be a function accepting the class, and
-    returning a TerminalIO object."""
-
-    if termname not in _term_support:
-        raise KeyError("Unknown terminal type: '%s'" % termname)
-    elif not _term_support[termname]:
-        raise ValueError("Terminal type is not supported on this platform.")
-
-    ctor = _term_support[termname]
-    if wrapper:
-        return wrapper(ctor)
-    else:
-        return ctor()
+    terminal._set_io('putty', PuttyWinIO, True)
 
 #}}}
 
