@@ -135,26 +135,92 @@ def is_color (val):
 # archive.
 #
 
+class ThemeFileVersion (object):
+    _keytable = None
+
+    def __init__ (self, other=None):
+        self._keytable = other._keytable.copy() if other else {}
+
+    def add_color48 (self, iterable):
+        for k in iterable:
+            self._keytable[k] = (parse_colorhex, to_color48, 'c48')
+
+    def add_color24 (self, iterable):
+        for k in iterable:
+            self._keytable[k] = (parse_colorhex, to_color24, 'c24')
+
+    def add_str (self, iterable):
+        for k in iterable:
+            self._keytable[k] = (self._parse_str, self._to_str, 's')
+
+    def add_unicode (self, iterable):
+        for k in iterable:
+            self._keytable[k] = (self._parse_unicode, self._to_unicode, 'u')
+
+    def add_bool (self, iterable):
+        for k in iterable:
+            self._keytable[k] = (self._parse_bool, self._to_bool, 'b')
+
+    def upgrade_colors (self):
+        for k, v in self._keytable.keys():
+            if v[-1] == 'c24':
+                self._keytable[k] = (parse_colorhex, to_color48, 'c48')
+
+    def parse_value (self, k, v):
+        parse_fn = self._keytable[k][0]
+        return parse_fn(v)
+
+    def marshal_value (self, k, v):
+        marshal_fn = self._keytable[k][1]
+        return marshal_fn(v)
+
+    def _parse_bool (self, v):
+        return v[0].upper().startswith("T")
+    def _to_bool (self, v):
+        return repr(bool(v))
+
+    def _parse_unicode (self, v):
+        return v.decode('utf-8', 'replace')
+    def _to_unicode (self, v):
+        return unicode(v).encode('utf-8')
+
+    def _parse_str (self, v):
+        return v
+    def _to_str (self, v):
+        return str(v)
+
+
+v1 = ThemeFileVersion()
+v1.add_color24(["color%d" % i for i in range(16)])
+v1.add_color24("fgcolor bgcolor fgbold".split())
+v1.add_str("name font cursor_shape".split())
+v1.add_bool("allow_bold force_font use_fgbold".split())
+
+v1_2 = ThemeFileVersion(v1)
+v1_2.upgrade_colors()
+v1_2.add_color48("bgbold fgcursor bgcursor".split())
+v1_2.add_unicode("name font cursor_shape".split())
+
+_versions = [('1_2', v1_2), ('1', v1)]
+
+del v1, v1_2
+
+
 class ThemeFile (object):
     filename = None
-
-    _autotype_defs = [
-        (re.compile(r'^t', re.I), lambda x: True),
-        (re.compile(r'^f', re.I), lambda x: False),
-        (re.compile(r'^\d+$'), lambda x: int(x, 10)),
-        (re.compile(r'^\d*\.\d+(?:e\d+)?$', re.I), lambda x: float(x)),
-        (re.compile(r'^#(?:[0-9a-f]{6}){1,2}$', re.I),
-         lambda x: parse_colorhex(x)),
-    ]
-    _autotype_writer = [
-        (is_color, to_color24),
-    ]
+    version = None
 
     def __init__ (self, filename, profile_class=None):
         self.filename = filename
         if not profile_class:
             profile_class = TerminalProfile
         self._profile_ctor = profile_class
+
+    def get_versions (self):
+        return [x[0] for x in _versions]
+
+    def has_version (self, ver):
+        return any(True for x in _versions if x[0] == ver)
 
     def read_open (self):
         """Return a ConfigParser associated with the theme file."""
@@ -174,19 +240,26 @@ class ThemeFile (object):
         """Populate a profile with the data from the parser."""
 
         profile_class = self._profile_ctor
+        section = None
+        for v in _versions:
+            if parser.has_section('Termitheme' + v[0]):
+                section = 'Termitheme' + v[0]
+                marshaller = v[1]
+                break
+
+        if not section:
+            raise KeyError("Theme file has no compatible theme version.")
+
         try:
-            name = parser.get('Termitheme1', 'name')
-            p = profile_class(name)
+            name = parser.get(section, 'name')
+            p = profile_class(marshaller.parse_value('name', name))
         except ConfigParser.NoOptionError:
             raise KeyError("Theme file does not have a 'name' key.")
 
-        for k, v in parser.items('Termitheme1'):
+        for k, v in parser.items(section):
             if k == 'name': # special key
                 continue
-
-            # the autotyper makes this O(M*N) but there's no other way to
-            # get booleans into gconf as real booleans
-            p[k] = self._autotype(v)
+            p[k] = marshaller.parse_value(k, v)
 
         return p
 
@@ -196,14 +269,6 @@ class ThemeFile (object):
 
     def write (self, profile):
         """Write the profile into self.filename."""
-
-        lines = ["[Termitheme1]\n", "name = %s\n" % profile.name]
-        for k,v in profile.items():
-            # Again, this becomes O(M*N) but otherwise things break.
-            for predicate, action in self._autotype_writer:
-                if predicate(v):
-                    v = action(v)
-            lines.append("%s = %s\n" % (k, v))
 
         info = zipfile.ZipInfo()
         info.filename = 'theme.ini'
@@ -216,15 +281,16 @@ class ThemeFile (object):
 
         if os.path.exists(self.filename):
             raise ValueError("File '%s' exists." % self.filename)
-        zf = zipfile.ZipFile(self.filename, 'w')
-        zf.writestr(info, ''.join(lines))
+        zf = zipfile.ZipFile(self.filename, 'w') # FIXME: binary/unicode
+        for ver, marshaller in _versions:
+            zf.writestr(self._format_version(profile, ver, marshaller))
         zf.close()
 
-    def _autotype (self, val):
-        for re, fn in self._autotype_defs:
-            if re.match(val):
-                return fn(val)
-        return val
+    def _format_version (self, profile, ver, m):
+        lines = ["[Termitheme%s]\n" % ver, "name = %s\n" % profile.name]
+        for k,v in profile.items():
+            lines.append("%s = %s\n" % (k, m.marshal_value(k, v)))
+        return ''.join(lines)
 
 #}}}
 
