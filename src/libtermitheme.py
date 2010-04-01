@@ -30,89 +30,98 @@ except ImportError:
 
 #{{{ Color conversion
 
-def _init_color_re (): #{{{
-    def xdigits (len):
-        return '([0-9a-f]{%d})' % len
+class _ColorParser (object):
+    def __init__ (self): #{{{
+        def xdigits (len):
+            return '([0-9a-f]{%d})' % len
 
-    def decbyte ():
-        return '(2(?:5[0-5]|[0-4][0-9])|1?[0-9]{1,2})'
+        def decbyte ():
+            return '(2(?:5[0-5]|[0-4][0-9])|1?[0-9]{1,2})'
 
-    dec_core = [decbyte() for i in range(3)]
-    dec_str = r',\s*'.join(dec_core)
+        dec_core = [decbyte() for i in range(3)]
+        dec_str = r',\s*'.join(dec_core)
 
-    return {
-        '24': re.compile('^#?' + (3 * xdigits(2)) + '$', re.I),
-        '48': re.compile('^#?' + (3 * xdigits(4)) + '$', re.I),
-        '24dec': re.compile('^' + dec_str + '$'),
-    }
+        self._color_re = {
+            '24': re.compile('^#?' + (3 * xdigits(2)) + '$', re.I),
+            '48': re.compile('^#?' + (3 * xdigits(4)) + '$', re.I),
+            '24dec': re.compile('^' + dec_str + '$'),
+        }
+    #}}}
 
-#}}}
-_color_re = _init_color_re()
+    def parse24 (self, color): #{{{
+        m = self._color_re['24'].match(color)
+        if m is None:
+            raise ValueError("Invalid 24-bit hex color '%s'" % color)
+        return [self._double(int(h, 16)) for h in m.groups()]
 
-def parse_color24 (color): #{{{
-    m = _color_re['24'].match(color)
-    if m is None:
-        raise ValueError("Invalid 24-bit hex color '%s'" % color)
-    return [int(h, 16) for h in m.groups()]
+    def to24 (self, color):
+        if len(color) != 3:
+            raise ValueError("Unexpected color length.")
+        rgb = ''.join(["%02x" % (v//256,) for v in color])
+        return '#' + rgb
 
-def parse_color48 (color):
-    m = _color_re['48'].match(color)
-    if m is None:
-        raise ValueError("Invalid 48-bit hex color '%s'" % color)
-    return [int(h, 16) // 256 for h in m.groups()]
+    def is24 (self, v):
+        if isinstance(v, basestring) and self._color_re['24'].match(v):
+            return True
+        return False
+    #}}}
 
-def parse_color24dec (color):
-    m = _color_re['24dec'].match(color)
-    if m is None:
-        raise ValueError("Invalid 24-bit decimal color '%s'" % color)
-    return [int(d, 10) for d in m.groups()] #}}}
+    def parse24dec (self, color): #{{{
+        m = self._color_re['24dec'].match(color)
+        if m is None:
+            raise ValueError("Invalid 24-bit decimal color '%s'" % color)
+        return [self._double(int(d, 10)) for d in m.groups()]
 
-def to_color24 (color): #{{{
-    if len(color) != 3:
-        raise ValueError("Unexpected color length.")
+    def to24dec (self, color):
+        if len(color) != 3:
+            raise ValueError("Unexpected color length.")
+        return ','.join(["%d" % (v//256,) for v in color])
 
-    rgb = ''.join(["%02x" % v for v in color])
-    return '#' + rgb
+    def is24dec (self, v):
+        if isinstance(v, basestring) and self._color_re['24dec'].match(v):
+            return True
+        return False
+    #}}}
 
-def to_color48 (color):
-    if len(color) != 3:
-        raise ValueError("Unexpected color length.")
+    def parse48 (self, color): #{{{
+        m = self._color_re['48'].match(color)
+        if m is None:
+            raise ValueError("Invalid 48-bit hex color '%s'" % color)
+        return [int(h, 16) for h in m.groups()]
 
-    rgb = ''.join(["%02x%02x" % (v, v) for v in color])
-    return '#' + rgb
+    def to48 (self, color):
+        if len(color) != 3:
+            raise ValueError("Unexpected color length.")
+        rgb = ''.join(["%04x" % v for v in color])
+        return '#' + rgb
 
-def to_color24dec (color):
-    if len(color) != 3:
-        raise ValueError("Unexpected color length.")
+    def is48 (self, v):
+        if isinstance(v, basestring) and self._color_re['48'].match(v):
+            return True
+        return False
+    #}}}
 
-    return ','.join(["%d" % v for v in color]) #}}}
+    def parsehex (self, color): #{{{
+        if len(color) > 7:
+            return self.parse48(color)
+        else:
+            return self.parse24(color)
+    #}}}
 
-def is_color24 (val): #{{{
-    if isinstance(val, basestring) and _color_re['24'].match(val):
-        return True
-    return False
+    def is_color (self, v): #{{{
+        if isinstance(v, list) and len(v) == 3:
+            # test channel values
+            return all([0 <= ch <= 65535 for ch in v])
+        return False
+    #}}}
 
-def is_color48 (val):
-    if isinstance(val, basestring) and _color_re['48'].match(val):
-        return True
-    return False
+    def _double (self, byteval): #{{{
+        if 0 <= byteval <= 255:
+            return byteval + byteval*256
+        raise ValueError("Byte value out of range: %d" % byteval)
+    #}}}
 
-def is_color24dec (val):
-    if isinstance(val, basestring) and _color_re['24dec'].match(val):
-        return True
-    return False #}}}
-
-def parse_colorhex (color):
-    if len(color) > 7:
-        return parse_color48(color)
-    else:
-        return parse_color24(color)
-
-def is_color (val):
-    if isinstance(val, list) and len(val) == 3:
-        # test channel values
-        return all([0 <= ch <= 255 for ch in val])
-    return False
+color = _ColorParser()
 
 #}}}
 
@@ -139,32 +148,39 @@ class ThemeFileVersion (object):
     _keytable = None
 
     def __init__ (self, other=None):
-        self._keytable = other._keytable.copy() if other else {}
+        self._keytable = other._keytable.copy() if other else dict()
 
+    #{{{ add_DATATYPE methods
     def add_color48 (self, iterable):
         for k in iterable:
-            self._keytable[k] = (parse_colorhex, to_color48, 'c48')
+            self._keytable[k] = (color.parsehex, color.to48,
+                                 self._comment_color, 'c48')
 
     def add_color24 (self, iterable):
         for k in iterable:
-            self._keytable[k] = (parse_colorhex, to_color24, 'c24')
+            self._keytable[k] = (color.parsehex, color.to24,
+                                 self._comment_color, 'c24')
 
     def add_str (self, iterable):
         for k in iterable:
-            self._keytable[k] = (self._parse_str, self._to_str, 's')
+            self._keytable[k] = (self._parse_str, self._to_str, None, 's')
 
     def add_unicode (self, iterable):
         for k in iterable:
-            self._keytable[k] = (self._parse_unicode, self._to_unicode, 'u')
+            self._keytable[k] = (self._parse_unicode, self._to_unicode,
+                                 None, 'u')
 
     def add_bool (self, iterable):
         for k in iterable:
-            self._keytable[k] = (self._parse_bool, self._to_bool, 'b')
+            self._keytable[k] = (self._parse_bool, self._to_bool,
+                                 None, 'b')
+    #}}}
 
     def upgrade_colors (self):
-        for k, v in self._keytable.keys():
+        for k, v in self._keytable.items():
             if v[-1] == 'c24':
-                self._keytable[k] = (parse_colorhex, to_color48, 'c48')
+                self._keytable[k] = (color.parsehex, color.to48,
+                                     self._comment_color, 'c48')
 
     def parse_value (self, k, v):
         parse_fn = self._keytable[k][0]
@@ -174,20 +190,33 @@ class ThemeFileVersion (object):
         marshal_fn = self._keytable[k][1]
         return marshal_fn(v)
 
+    def comment_value (self, k, v):
+        comment_fn = self._keytable[k][2]
+        if comment_fn:
+            return '; %s\n' % comment_fn(v)
+        return None
+
+    def _comment_color (self, v):
+        return color.to24dec(v)
+
+    #{{{ Primitive value parsers/marshallers
     def _parse_bool (self, v):
         return v[0].upper().startswith("T")
     def _to_bool (self, v):
         return repr(bool(v))
 
+    # v1.2+
     def _parse_unicode (self, v):
         return v.decode('utf-8', 'replace')
     def _to_unicode (self, v):
         return unicode(v).encode('utf-8')
 
+    # v1.0-1.1 (legacy)
     def _parse_str (self, v):
         return v
     def _to_str (self, v):
         return str(v)
+    #}}}
 
 
 v1 = ThemeFileVersion()
@@ -279,16 +308,21 @@ class ThemeFile (object):
         info.compress_type = zipfile.ZIP_DEFLATED
         info.external_attr = 0644 << 16L # thank you bug 3394 (swarren)
 
+        data = '\n'.join(self._format_version(profile, ver, marshaller)
+                         for ver, marshaller in _versions)
+
         if os.path.exists(self.filename):
             raise ValueError("File '%s' exists." % self.filename)
         zf = zipfile.ZipFile(self.filename, 'w') # FIXME: binary/unicode
-        for ver, marshaller in _versions:
-            zf.writestr(self._format_version(profile, ver, marshaller))
+        zf.writestr(info, data)
         zf.close()
 
     def _format_version (self, profile, ver, m):
         lines = ["[Termitheme%s]\n" % ver, "name = %s\n" % profile.name]
-        for k,v in profile.items():
+        for k,v in sorted(profile.items()):
+            comment = m.comment_value(k, v)
+            if comment:
+                lines.append(comment)
             lines.append("%s = %s\n" % (k, m.marshal_value(k, v)))
         return ''.join(lines)
 
@@ -609,14 +643,18 @@ class GnomeTerminalIO (TerminalIOBase):
             for e in c.all_entries(path[:-1]):
                 k = self._relative_key(e.get_key())
                 v = gconf_unbox(e.get_value())
-                if is_color48(v):
-                    v = parse_color48(v)
+                if color.is48(v):
+                    v = color.parse48(v)
                 if k in theme:
                     p[theme[k]] = v
                 else:
                     private_data[k] = v
             self._set_colors_from_palette(p, private_data['palette'])
             del private_data['palette']
+        # clean up logic reversal with use_system_font vs. force_font
+        if 'force_font' in p:
+            p['force_font'] = not p['force_font']
+
         return p
         #}}}
 
@@ -645,8 +683,8 @@ class GnomeTerminalIO (TerminalIOBase):
         for k, k_prof in self.THEME_KEYS.items():
             if k_prof in profile:
                 val = profile[k_prof]
-                if is_color(val):
-                    val = to_color48(val)
+                if color.is_color(val):
+                    val = color.to48(val)
                 c.set(path + k, gconf_box(val))
         # Private keys (copied from default profile)
         with profile.ioslave(self._slavename) as private_data:
@@ -690,14 +728,14 @@ class GnomeTerminalIO (TerminalIOBase):
         raise ValueError("Default name does not have a path mapping.")
 
     def _set_colors_from_palette (self, profile, palette):
-        colors = [parse_color48(i) for i in palette.split(":")]
+        colors = [color.parse48(i) for i in palette.split(":")]
         if len(colors) < 16:
             raise ValueError("Palette does not contain enough colors.")
         for i in range(16):
             profile["color%d" % i] = colors[i]
 
     def _get_palette_from_profile (self, profile):
-        pal = [to_color48(profile["color%d" % i]) for i in range(16)]
+        pal = [color.to48(profile["color%d" % i]) for i in range(16)]
         return ":".join(pal)
     #}}}
 
@@ -738,8 +776,8 @@ class PuttyWinIO (TerminalIOBase):
     for k in THEME_KEYS.keys():
         if k.startswith("Colour"):
             THEME_KEYS[k] = (THEME_KEYS[k][0],
-                             parse_color24dec,
-                             to_color24dec)
+                             color.parse24dec,
+                             color.to24dec)
 
     _slavename = 'putty-win'
 
