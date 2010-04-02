@@ -740,7 +740,7 @@ class GnomeTerminalIO (TerminalIOBase):
 
 class PuttyWinIO (TerminalIOBase):
     SESSIONS_DIR = r'Software\SimonTatham\PuTTY\Sessions'
-    # XXX: FIGURE OUT THIS MAPPING
+    # XXX: FIGURE OUT THIS MAPPING / WHETHER BoldAsColour IS CORRECT
     THEME_KEYS = {'BoldAsColour': ('allow_bold', int, bool),
                   'Colour0': ('bgcolor',),
                   'Colour1': ('bgbold',),
@@ -788,13 +788,14 @@ class PuttyWinIO (TerminalIOBase):
 
     def read_profile (self, name=None):
         if name is None:
-            raise ValueError("PuTTY has no default profile.")
+            raise ValueError("PuTTY has no default profile; " +
+                             "the -b option is required.")
 
         try:
             values = self._winreg_map(_winreg.EnumValue,
                                       self._session_key(name))
         except WindowsError:
-            raise KeyError("No profile named '%' exists." % name)
+            raise KeyError("No profile named '%s' exists." % name)
 
         p = self._profile_ctor(name)
         with p.ioslave(self._slavename) as private_data:
