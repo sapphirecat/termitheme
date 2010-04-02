@@ -828,20 +828,23 @@ class PuttyWinIO (TerminalIOBase):
             key = _winreg.CreateKey(self._HIVE,
                                     self._session_key(profile.name))
 
-            # Private keys copied from base profile
-            with profile.ioslave(self._slavename) as private_data:
-                for k, (v, t) in private_data.items():
+            try:
+                # Private keys copied from base profile
+                with profile.ioslave(self._slavename) as private_data:
+                    for k, (v, t) in private_data.items():
+                        _winreg.SetValueEx(key, k, 0, t, v)
+                # Theme keys
+                theme = self.THEME_KEYS
+                for k, v in profile.items():
+                    t, v = self._reg_serial(theme[k][1], v)
                     _winreg.SetValueEx(key, k, 0, t, v)
-            # Theme keys
-            theme = self.THEME_KEYS
-            for k, v in profile.items():
-                t, v = self._reg_serial(theme[k][1], v)
-                _winreg.SetValueEx(key, k, 0, t, v)
-            # Defaults for making the theme take hold
-            for k, v, t_name in self.STD_KEYS:
-                t, v = self._reg_serial(t_name, v)
-                _winreg.SetValueEx(key, k, 0, t, v)
-            # No special keys for PuTTY/win
+                # Defaults for making the theme take hold
+                for k, v, t_name in self.STD_KEYS:
+                    t, v = self._reg_serial(t_name, v)
+                    _winreg.SetValueEx(key, k, 0, t, v)
+                # No special keys for PuTTY/win
+            finally:
+                key.Close()
 
         except WindowsError, e:
             raise RuntimeError("Registry error writing profile '%s'" %
