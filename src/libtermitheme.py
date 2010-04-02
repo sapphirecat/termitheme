@@ -145,6 +145,9 @@ color = _ColorParser()
 #
 
 class ThemeFileVersion (object):
+    # Keys are theme file keys (e.g. color0); values are a 4-tuple of
+    # parser_func, marshaller_func, comment_func or None, type shorthand.
+    # The type shorthand is only useful for upgrade_colors right now.
     _keytable = None
 
     def __init__ (self, other=None):
@@ -228,6 +231,7 @@ v1.add_bool("allow_bold force_font use_fgbold".split())
 v1_2 = ThemeFileVersion(v1)
 v1_2.upgrade_colors()
 v1_2.add_color48("bgbold fgcursor bgcursor".split())
+# overrides the str type in v1
 v1_2.add_unicode("name font cursor_shape".split())
 
 _versions = [('1_2', v1_2), ('1', v1)]
@@ -338,11 +342,14 @@ class TerminalProfile (dict):
     PROFILE_KEY_NAMES = ["color%d" % i for i in range(16)]
     PROFILE_KEY_NAMES.extend([
         # common (plus color0 through color15)
+        'bgbold',
         'bgcolor',
+        'bgcursor',
         'cursor_shape',
-        'font',
-        'fgcolor',
         'fgbold',
+        'fgcolor',
+        'fgcursor',
+        'font',
         # gnome-terminal
         'force_font',
         'allow_bold',
@@ -736,11 +743,11 @@ class PuttyWinIO (TerminalIOBase):
     # XXX: FIGURE OUT THIS MAPPING
     THEME_KEYS = {'BoldAsColour': ('allow_bold', int, bool),
                   'Colour0': ('bgcolor',),
-                  #'Colour1': ('bgbold',),
+                  'Colour1': ('bgbold',),
                   'Colour2': ('fgcolor',),
                   'Colour3': ('fgbold',),
-                  #'Colour4': ('fgcursor',),
-                  #'Colour5': ('bgcursor',),
+                  'Colour4': ('fgcursor',),
+                  'Colour5': ('bgcursor',),
                   'Colour6': ('color0',),
                   'Colour7': ('color8',),
                   'Colour8': ('color1',),
