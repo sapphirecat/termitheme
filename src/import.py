@@ -8,7 +8,7 @@ def parse_args (argv):
     p = optparse.OptionParser(prog=os.path.basename(argv[0]),
                               usage='%prog [options] filename')
 
-    t_help = ("Export from terminal type TYPE (available types: %s)" %
+    t_help = ("Import to terminal type TYPE (available types: %s)" %
               ", ".join(terminal.supported_types()))
 
     p.add_option("-b", "--base", dest="base", metavar="PROFILE",

@@ -409,19 +409,6 @@ class TerminalProfile (dict):
 #}}}
 
 
-#{{{ Shared handling helpers for import/export scripts
-
-def p_err (str):
-    print >>sys.stderr, str
-
-def usage (error_msg):
-    p_err(error_msg)
-    p_err("Use --help for details.")
-    sys.exit(2)
-
-#}}}
-
-
 #{{{ Terminal IO
 
 #{{{ IO base class
@@ -884,6 +871,19 @@ if gconf:
     terminal._set_io('gnome', GnomeTerminalIO, True)
 if _winreg:
     terminal._set_io('putty', PuttyWinIO, True)
+
+#}}}
+
+
+#{{{ Shared handling helpers for import/export scripts
+
+def p_err (str):
+    print >>sys.stderr, str
+
+def usage (error_msg):
+    p_err(error_msg)
+    p_err("Use --help for details.")
+    sys.exit(2)
 
 #}}}
 
