@@ -4,6 +4,7 @@
 from contextlib import contextmanager
 import ConfigParser
 import datetime
+import locale
 import optparse
 import os.path
 import re
@@ -11,6 +12,10 @@ import StringIO # Python2.5 compatible hackery
 import sys
 import time
 import zipfile
+
+# Bust us out of 'C' locale
+locale.setlocale(locale.LC_ALL, '')
+USER_CHARSET = locale.nl_langinfo(locale.CODESET)
 
 # PLATFORM SUPPORT
 # Unfortunately, I don't see a way to detect whether these are available,
@@ -275,13 +280,17 @@ class ThemeFile (object):
         return any(True for x in _versions if x[0] == ver)
 
     def set_credits (self, src_filename): #{{{
-        with open(src_filename) as f:
-            self._files['credits'] = f.read()
+        self._set_file('credits', src_filename)
 
     def get_credits (self):
         if 'credits' not in self._files:
             self._files['credits'] = self._get_file('credits')
         return self._files['credits']
+
+    def _set_file (self, key, filename):
+        with open(filename) as f:
+            txt = f.read()
+        self._files['credits'] = self._decode(txt, filename)
 
     def _get_file (self, key):
         try:
@@ -303,6 +312,18 @@ class ThemeFile (object):
 
         # All versions supported it, but it still wasn't found
         return None
+
+    def _decode (self, txt, filename):
+        charsets = [USER_CHARSET]
+        if not re.match('utf-8$', USER_CHARSET, re.I):
+            charsets.append('utf-8')
+        for cset in charsets:
+            try:
+                return txt.decode(cset, 'strict')
+            except UnicodeError:
+                pass
+        # UnicodeDecodeError() takes 5 arguments (1 given)
+        raise ValueError("Illegal characters in file '%s'" % filename)
     #}}}
 
     def read_open (self):
@@ -363,7 +384,7 @@ class ThemeFile (object):
         zf.writestr(self._zipinfo('theme.ini'), data) # main theme
         for key, content in self._files.items(): # other archive files
             name = spec.get_archive_file(key)
-            zf.writestr(self._zipinfo(name), content)
+            zf.writestr(self._zipinfo(name), content.encode('utf-8'))
         zf.close()
 
     def _format_version (self, profile, ver, m):
