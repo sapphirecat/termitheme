@@ -144,14 +144,16 @@ color = _ColorParser()
 # archive.
 #
 
-class ThemeFileVersion (object):
+class _ThemeFileVersion (object):
     # Keys are theme file keys (e.g. color0); values are a 4-tuple of
     # parser_func, marshaller_func, comment_func or None, type shorthand.
     # The type shorthand is only useful for upgrade_colors right now.
     _keytable = None
+    _files = None
 
     def __init__ (self, other=None):
         self._keytable = other._keytable.copy() if other else dict()
+        self._files = other._files.copy() if other else dict()
 
     #{{{ add_DATATYPE methods
     def add_color48 (self, iterable):
@@ -179,12 +181,24 @@ class ThemeFileVersion (object):
                                  None, 'b')
     #}}}
 
+    #{{{ Version 1.2 feature support
     def upgrade_colors (self):
         for k, v in self._keytable.items():
             if v[-1] == 'c24':
                 self._keytable[k] = (color.parsehex, color.to48,
                                      self._comment_color, 'c48')
 
+    def add_archive_files (self, mapping):
+        self._files.update(mapping)
+
+    def get_archive_file (self, file_key):
+        return self._files[file_key]
+
+    def has_archive_file (self, file_key):
+        return file_key in self._files
+    #}}}
+
+    #{{{ Main parse/marshal/comment methods
     def parse_value (self, k, v):
         parse_fn = self._keytable[k][0]
         return parse_fn(v)
@@ -201,6 +215,7 @@ class ThemeFileVersion (object):
 
     def _comment_color (self, v):
         return color.to24dec(v)
+    #}}}
 
     #{{{ Primitive value parsers/marshallers
     def _parse_bool (self, v):
@@ -222,17 +237,19 @@ class ThemeFileVersion (object):
     #}}}
 
 
-v1 = ThemeFileVersion()
+v1 = _ThemeFileVersion()
 v1.add_color24(["color%d" % i for i in range(16)])
 v1.add_color24("fgcolor bgcolor fgbold".split())
 v1.add_str("name font cursor_shape".split())
 v1.add_bool("allow_bold force_font use_fgbold".split())
 
-v1_2 = ThemeFileVersion(v1)
+v1_2 = _ThemeFileVersion(v1)
 v1_2.upgrade_colors()
 v1_2.add_color48("bgbold fgcursor bgcursor".split())
 # overrides the str type in v1
 v1_2.add_unicode("name font cursor_shape".split())
+
+v1_2.add_archive_files(dict(credits="credits.txt"))
 
 _versions = [('1_2', v1_2), ('1', v1)]
 
@@ -249,11 +266,44 @@ class ThemeFile (object):
             profile_class = TerminalProfile
         self._profile_ctor = profile_class
 
+        self._files = dict()
+
     def get_versions (self):
         return [x[0] for x in _versions]
 
     def has_version (self, ver):
         return any(True for x in _versions if x[0] == ver)
+
+    def set_credits (self, src_filename): #{{{
+        with open(src_filename) as f:
+            self._files['credits'] = f.read()
+
+    def get_credits (self):
+        if 'credits' not in self._files:
+            self._files['credits'] = self._get_file('credits')
+        return self._files['credits']
+
+    def _get_file (self, key):
+        try:
+            zf = zipfile.ZipFile(self.filename, 'r')
+        except:
+            return None
+
+        try:
+            for ver, spec in _versions:
+                if not spec.has_archive_file(key):
+                    # Reached a version that precedes this feature
+                    return None
+                try:
+                    return zf.read(spec.get_archive_file(key))
+                except:
+                    pass
+        finally:
+            zf.close()
+
+        # All versions supported it, but it still wasn't found
+        return None
+    #}}}
 
     def read_open (self):
         """Return a ConfigParser associated with the theme file."""
@@ -303,22 +353,17 @@ class ThemeFile (object):
     def write (self, profile):
         """Write the profile into self.filename."""
 
-        info = zipfile.ZipInfo()
-        info.filename = 'theme.ini'
-        # whoever designed this api is ridiculous
-        now = datetime.datetime.fromtimestamp(time.time())
-        info.date_time = (now.year, now.month, now.day,
-                          now.hour, now.minute, now.second)
-        info.compress_type = zipfile.ZIP_DEFLATED
-        info.external_attr = 0644 << 16L # thank you bug 3394 (swarren)
-
-        data = '\n'.join(self._format_version(profile, ver, marshaller)
-                         for ver, marshaller in _versions)
+        data = '\n'.join([self._format_version(profile, ver, spec)
+                          for ver, spec in _versions])
+        spec = _versions[0][1]
 
         if os.path.exists(self.filename):
             raise ValueError("File '%s' exists." % self.filename)
         zf = zipfile.ZipFile(self.filename, 'w') # FIXME: binary/unicode
-        zf.writestr(info, data)
+        zf.writestr(self._zipinfo('theme.ini'), data) # main theme
+        for key, content in self._files.items(): # other archive files
+            name = spec.get_archive_file(key)
+            zf.writestr(self._zipinfo(name), content)
         zf.close()
 
     def _format_version (self, profile, ver, m):
@@ -329,6 +374,17 @@ class ThemeFile (object):
                 lines.append(comment)
             lines.append("%s = %s\n" % (k, m.marshal_value(k, v)))
         return ''.join(lines)
+
+    def _zipinfo (self, filename):
+        info = zipfile.ZipInfo()
+        info.filename = filename
+        # whoever designed this api is ridiculous
+        now = datetime.datetime.fromtimestamp(time.time())
+        info.date_time = (now.year, now.month, now.day,
+                          now.hour, now.minute, now.second)
+        info.compress_type = zipfile.ZIP_DEFLATED
+        info.external_attr = 0644 << 16L # thank you bug 3394 (swarren)
+        return info
 
 #}}}
 

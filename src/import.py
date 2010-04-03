@@ -7,19 +7,22 @@
 def parse_args (argv):
     p = optparse.OptionParser(prog=os.path.basename(argv[0]),
                               usage='%prog [options] filename')
+    ao = p.add_option
 
     t_help = ("Import to terminal type TYPE (available types: %s)" %
               ", ".join(terminal.supported_types()))
 
-    p.add_option("-b", "--base", dest="base", metavar="PROFILE",
-                 help="Base on PROFILE instead of the default profile")
-    p.add_option("-n", "--name", dest="name", metavar="NAME",
-                 help="Name the newly created profile NAME")
-    p.add_option("-o", "--overwrite", dest="overwrite", action="store_true",
-                 help="Allow overwriting/updating an existing profile")
-    p.add_option("-t", "--terminal", dest="terminal", metavar="TYPE",
-                 default=terminal.default_type,
-                 help=t_help)
+    ao("-b", "--base", dest="base", metavar="PROFILE",
+       help="Base on PROFILE instead of the default profile")
+    ao("-c", "--credits", dest="credits", action="store_true",
+       help="Print theme credits and exit.")
+    ao("-n", "--name", dest="name", metavar="NAME",
+       help="Name the newly created profile NAME")
+    ao("-o", "--overwrite", dest="overwrite", action="store_true",
+       help="Allow overwriting/updating an existing profile")
+    ao("-t", "--terminal", dest="terminal", metavar="TYPE",
+       default=terminal.default_type,
+       help=t_help)
 
     return p.parse_args(argv[1:])
 
@@ -43,6 +46,25 @@ def main (argv=None, filename=None):
         p_err(e.args[0])
         sys.exit(2)
 
+    try:
+        themefile = ThemeFile(filename)
+        src = themefile.read()
+    except:
+        p_err("Theme file %s does not seem to be valid." % filename)
+        sys.exit(1)
+
+    if opts.credits:
+        try:
+            c = themefile.get_credits()
+            if c is None:
+                print "No credits are available for this theme."
+            else:
+                print c
+            sys.exit(0)
+        except Exception, e:
+            p_err("Error reading credits: '%s'" % e.args[0])
+            sys.exit(1)
+
     if not opts.base:
         dst = io.read_profile()
         base = "default profile"
@@ -53,13 +75,6 @@ def main (argv=None, filename=None):
         except:
             p_err("The base theme %s does not exist." % opts.base)
             sys.exit(1)
-
-    try:
-        themefile = ThemeFile(filename)
-        src = themefile.read()
-    except:
-        p_err("Theme file %s does not seem to be valid." % filename)
-        sys.exit(1)
 
     dst_name = opts.name if opts.name else src.name
     if io.profile_exists(dst_name) and not opts.overwrite:

@@ -4,15 +4,18 @@
 def parse_args (argv):
     p = optparse.OptionParser(prog=os.path.basename(argv[0]),
                               usage='%prog [options] profile [filename]')
+    ao = p.add_option
 
     t_help = ("Export from terminal type TYPE (available types: %s)" %
               ", ".join(terminal.supported_types()))
 
-    p.add_option("-n", "--name", dest="name", metavar="NAME",
-                 help="Set the profile name to NAME in the exported file")
-    p.add_option("-t", "--terminal", dest="terminal", metavar="TYPE",
-                 default=terminal.default_type,
-                 help=t_help)
+    ao("-c", "--credits", dest="credits", metavar="FILE",
+       help="Include contents of FILE as credits in the exported file")
+    ao("-n", "--name", dest="name", metavar="NAME",
+       help="Set the profile name to NAME in the exported file")
+    ao("-t", "--terminal", dest="terminal", metavar="TYPE",
+       default=terminal.default_type,
+       help=t_help)
 
     return p.parse_args(argv[1:])
 
@@ -50,6 +53,8 @@ def main (argv=None, profile=None, filename=None):
 
     try:
         themefile = ThemeFile(filename)
+        if opts.credits:
+            themefile.set_credits(opts.credits)
         themefile.write(dst)
     except Exception, e:
         p_err("Failed to write theme to '%s':" % filename)
