@@ -304,7 +304,8 @@ class ThemeFile (object):
                     # Reached a version that precedes this feature
                     return None
                 try:
-                    return zf.read(spec.get_archive_file(key))
+                    s = zf.read(spec.get_archive_file(key))
+                    return s.decode('utf-8', 'replace')
                 except:
                     pass
         finally:

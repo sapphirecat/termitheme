@@ -59,7 +59,7 @@ def main (argv=None, filename=None):
             if c is None:
                 print "No credits are available for this theme."
             else:
-                print c
+                print c.encode(USER_CHARSET, 'xmlcharrefreplace')
             sys.exit(0)
         except Exception, e:
             p_err("Error reading credits: '%s'" % e.args[0])
