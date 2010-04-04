@@ -258,11 +258,12 @@ v1 = _ThemeFileVersion()
 v1.add_color24(["color%d" % i for i in range(16)])
 v1.add_color24("fgcolor bgcolor".split())
 v1.add_str("name font cursor_shape".split())
-v1.add_bool("allow_bold force_font use_fgbold".split())
+v1.add_bool("allow_bold force_font".split())
 
 v1_2 = _ThemeFileVersion(v1)
 v1_2.upgrade_colors()
-v1_2.add_color48("bgbold fgcursor bgcursor".split())
+v1_2.add_color48("fgbold bgbold fgcursor bgcursor".split())
+v1_2.add_bool("use_fgbold".split())
 # overrides the str type in v1
 v1_2.add_unicode("name font cursor_shape".split())
 
@@ -661,6 +662,7 @@ class GnomeTerminalIO (TerminalIOBase):
                   'font': None,
                   'foreground_color': 'fgcolor',
                   'use_system_font': 'force_font'}
+    REVERSE_BOOLS = set(['force_font', 'use_fgbold'])
     # use_theme_colors: "Use colors from system theme"
     STD_KEYS = [('use_theme_colors', False)]
 
@@ -728,15 +730,15 @@ class GnomeTerminalIO (TerminalIOBase):
                 v = gconf_unbox(e.get_value())
                 if color.is48(v):
                     v = color.parse48(v)
+                elif k in self.REVERSE_BOOLS:
+                    # fix up use_system_font vs. force_font, etc.
+                    v = not v
                 if k in theme:
                     p[theme[k]] = v
                 else:
                     private_data[k] = v
             self._set_colors_from_palette(p, private_data['palette'])
             del private_data['palette']
-        # clean up logic reversal with use_system_font vs. force_font
-        if 'force_font' in p:
-            p['force_font'] = not p['force_font']
 
         return p
         #}}}
@@ -772,6 +774,8 @@ class GnomeTerminalIO (TerminalIOBase):
                 val = profile[k_prof]
                 if color.is_color(val):
                     val = color.to48(val)
+                elif k in self.REVERSE_BOOLS:
+                    val = not val
                 c.set(path + k, gconf_box(val))
         # defaults for making the theme take hold (must overwrite ioslave)
         for k, v in self.STD_KEYS:
