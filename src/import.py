@@ -59,7 +59,7 @@ def main (argv=None, filename=None):
             if c is None:
                 print "No credits are available for this theme."
             else:
-                print c.encode(USER_CHARSET, 'xmlcharrefreplace')
+                print c.encode(sys.stdout.encoding, 'xmlcharrefreplace')
             sys.exit(0)
         except Exception, e:
             p_err("Error reading credits: '%s'" % e.args[0])
@@ -93,8 +93,8 @@ def main (argv=None, filename=None):
     try:
         io.write_profile(dst)
     except Exception, e:
-        p_err("Error writing new profile to gconf:")
-        p_err("\t%s" % e)
+        p_err("Error writing new profile to storage:")
+        p_err("\t%s" % e.args[0])
         sys.exit(1)
 
     print "Saved theme '%s' as '%s' (based on %s)" % (src.name,

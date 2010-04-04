@@ -13,10 +13,6 @@ import sys
 import time
 import zipfile
 
-# Bust us out of 'C' locale
-locale.setlocale(locale.LC_ALL, '')
-USER_CHARSET = locale.nl_langinfo(locale.CODESET)
-
 # PLATFORM SUPPORT
 # Unfortunately, I don't see a way to detect whether these are available,
 # short of importing the module whether we'll use them or not.
@@ -31,6 +27,19 @@ try:
     import _winreg
 except ImportError:
     _winreg = None
+
+# Post-import platform support
+# Bust us out of 'C' locale
+locale.setlocale(locale.LC_ALL, '')
+CHARSETS = []
+try:
+    CHARSETS.append(locale.nl_langinfo(locale.CODESET))
+except AttributeError: # win32! let's fake it good
+    if sys.stdout.encoding:
+        CHARSETS.append(sys.stdout.encoding)
+# Fall back on UTF-8 as the West is headed that direction by default
+if not CHARSETS or not re.match(r'utf-8$', CHARSETS[0], re.I):
+    CHARSETS.append('utf-8')
 
 
 #{{{ Color conversion
@@ -204,6 +213,9 @@ class _ThemeFileVersion (object):
     #}}}
 
     #{{{ Main parse/marshal/comment methods
+    def has_key (self, k):
+        return k in self._keytable
+
     def parse_value (self, k, v):
         parse_fn = self._keytable[k][0]
         return parse_fn(v)
@@ -244,7 +256,7 @@ class _ThemeFileVersion (object):
 
 v1 = _ThemeFileVersion()
 v1.add_color24(["color%d" % i for i in range(16)])
-v1.add_color24("fgcolor bgcolor fgbold".split())
+v1.add_color24("fgcolor bgcolor".split())
 v1.add_str("name font cursor_shape".split())
 v1.add_bool("allow_bold force_font use_fgbold".split())
 
@@ -315,10 +327,7 @@ class ThemeFile (object):
         return None
 
     def _decode (self, txt, filename):
-        charsets = [USER_CHARSET]
-        if not re.match('utf-8$', USER_CHARSET, re.I):
-            charsets.append('utf-8')
-        for cset in charsets:
+        for cset in CHARSETS:
             try:
                 return txt.decode(cset, 'strict')
             except UnicodeError:
@@ -391,6 +400,8 @@ class ThemeFile (object):
     def _format_version (self, profile, ver, m):
         lines = ["[Termitheme%s]\n" % ver, "name = %s\n" % profile.name]
         for k,v in sorted(profile.items()):
+            if not m.has_key(k):
+                continue
             comment = m.comment_value(k, v)
             if comment:
                 lines.append(comment)
@@ -763,7 +774,7 @@ class GnomeTerminalIO (TerminalIOBase):
                     val = color.to48(val)
                 c.set(path + k, gconf_box(val))
         # defaults for making the theme take hold (must overwrite ioslave)
-        for k, v in self.STD_KEYS: 
+        for k, v in self.STD_KEYS:
             c.set(path + k, gconf_box(v))
         # Special keys
         c.set_string(path + 'palette',
@@ -818,12 +829,10 @@ class GnomeTerminalIO (TerminalIOBase):
 
 class PuttyWinIO (TerminalIOBase):
     SESSIONS_DIR = r'Software\SimonTatham\PuTTY\Sessions'
-    # XXX: FIGURE OUT THIS MAPPING / WHETHER BoldAsColour IS CORRECT
-    THEME_KEYS = {'BoldAsColour': ('allow_bold', 'bool_int'),
-                  'Colour0': ('bgcolor',),
-                  'Colour1': ('bgbold',),
-                  'Colour2': ('fgcolor',),
-                  'Colour3': ('fgbold',),
+    THEME_KEYS = {'Colour0': ('fgcolor',),
+                  'Colour1': ('fgbold',),
+                  'Colour2': ('bgcolor',),
+                  'Colour3': ('bgbold',),
                   'Colour4': ('fgcursor',),
                   'Colour5': ('bgcursor',),
                   'Colour6': ('color0',),
@@ -844,7 +853,8 @@ class PuttyWinIO (TerminalIOBase):
                   'Colour21': ('color15',),
                   'Font': ('font', 'string'),
                  }
-    STD_KEYS = [('UseSystemColours', 0)]
+    STD_KEYS = [('UseSystemColours', False, 'bool_int'),
+                ('BoldAsColour', True, 'bool_int')]
     for k in THEME_KEYS.keys():
         if k.startswith("Colour"):
             THEME_KEYS[k] = (THEME_KEYS[k][0], 'color')
@@ -871,15 +881,15 @@ class PuttyWinIO (TerminalIOBase):
 
     def profile_exists (self, name):
         try:
-            _winreg.OpenKey(self._HIVE, _session_key(name))
+            _winreg.OpenKey(self._HIVE, self._session_key(name))
             return True
         except WindowsError: # XXX: test - does missing key cause this?
             return False
 
     def read_profile (self, name=None): #{{{
+        p = self._profile_ctor(name)
         if name is None:
-            raise ValueError("PuTTY has no default profile; " +
-                             "the -b option is required.")
+            return p
 
         try:
             values = self._winreg_map(_winreg.EnumValue,
@@ -887,12 +897,11 @@ class PuttyWinIO (TerminalIOBase):
         except WindowsError:
             raise KeyError("No profile named '%s' exists." % name)
 
-        p = self._profile_ctor(name)
         with p.ioslave(self._slavename) as private_data:
             theme = self.THEME_KEYS
             for k, v, t in values:
                 if k in theme:
-                    read_fn = self._theme_types[ theme[k][1] ][1]
+                    read_fn = self._theme_types[ theme[k][1] ][0]
                     if read_fn:
                         v = read_fn(v)
                     p[theme[k][0]] = v
@@ -912,10 +921,10 @@ class PuttyWinIO (TerminalIOBase):
                     for k, (v, t) in private_data.items():
                         _winreg.SetValueEx(key, k, 0, t, v)
                 # Theme keys
-                theme = self.THEME_KEYS
-                for k, v in profile.items():
-                    t, v = self._reg_serial(theme[k][1], v)
-                    _winreg.SetValueEx(key, k, 0, t, v)
+                for putty_key, (t_key, typename) in self.THEME_KEYS.items():
+                    if t_key in profile:
+                        t, v = self._reg_serial(typename, profile[t_key])
+                        _winreg.SetValueEx(key, putty_key, 0, t, v)
                 # Defaults for making the theme take hold
                 for k, v, t_name in self.STD_KEYS:
                     t, v = self._reg_serial(t_name, v)
