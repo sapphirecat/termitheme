@@ -374,7 +374,10 @@ class ThemeFile (object):
         for k, v in parser.items(section):
             if k == 'name': # special key
                 continue
-            p[k] = marshaller.parse_value(k, v)
+            try:
+                p[k] = marshaller.parse_value(k, v)
+            except KeyError:
+                pass
 
         return p
 
