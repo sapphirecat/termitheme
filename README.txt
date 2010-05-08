@@ -14,7 +14,7 @@ QUICK START
 ===========
 
 	$ unzip termitheme-1.2.zip
-  $ cd termitheme-1.2
+	$ cd termitheme-1.2
 	$ ./import.py BlackRock.zip
 	Saved theme 'BlackRock' as 'BlackRock' (based on Default)
 	$ ./export.py -n Newspeak BlackRock
