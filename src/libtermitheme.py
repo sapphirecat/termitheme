@@ -180,30 +180,30 @@ class _ThemeFileVersion (object):
 
     #{{{ add_DATATYPE methods
     def add_color48 (self, iterable):
-        self._add(iterable, (color.parsehex, color.to48,
-                             self._comment_color, 'c48'))
+        self._add(iterable, [color.parsehex, color.to48,
+                             self._comment_color, 'c48'])
 
     def add_color24 (self, iterable):
-        self._add(iterable, (color.parsehex, color.to24,
-                             self._comment_color, 'c24'))
+        self._add(iterable, [color.parsehex, color.to24,
+                             self._comment_color, 'c24'])
 
     def add_str (self, iterable):
-        self._add(iterable, (self._parse_str, self._to_str, None, 's'))
+        self._add(iterable, [self._parse_str, self._to_str, None, 's'])
 
     def add_unicode (self, iterable):
-        self._add(iterable, (self._parse_unicode, self._to_unicode,
-                             None, 'u'))
+        self._add(iterable, [self._parse_unicode, self._to_unicode,
+                             None, 'u'])
 
     def add_bool (self, iterable):
-        self._add(iterable, (self._parse_bool, self._to_bool, None, 'b'))
+        self._add(iterable, [self._parse_bool, self._to_bool, None, 'b'])
     #}}}
 
     #{{{ Version 1.2 feature support
     def upgrade_colors (self):
         for k, v in self._keytable.items():
             if v[-1] == 'c24':
-                self._keytable[k] = (color.parsehex, color.to48,
-                                     self._comment_color, 'c48')
+                self._keytable[k] = [color.parsehex, color.to48,
+                                     self._comment_color, 'c48']
 
     def add_archive_files (self, mapping):
         self._files.update(mapping)
