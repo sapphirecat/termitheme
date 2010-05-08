@@ -132,3 +132,25 @@ export.py to include it:
 (This file should be in the encoding of your current locale.  If you don't
 know what this means, it is most likely that way by default.)
 
+
+PROJECT PAGE
+============
+
+Termitheme: http://www.sapphirepaw.org/projects/termitheme.php
+Theme gallery: http://www.sapphirepaw.org/projects/themes/
+
+
+SUBMITTING THEMES TO THE GALLERY
+================================
+
+Send the following information to devel at sapphirepaw.org:
+
+	* The theme file, as an attachment or link
+	* The desired license, e.g. CC-BY-SA 3.0
+	* Attribution name
+	* Preview link, such as a screenshot or blog post (this must be
+	  a link, as screenshots will not be hosted)
+
+If any of this information is not included, then the theme cannot be
+published.
+
