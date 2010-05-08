@@ -160,7 +160,7 @@ color = _ColorParser()
 
 class _ThemeFileVersion (object):
     # Keys are theme file keys (e.g. color0); values are a 4-tuple of
-    # parser_func, marshaller_func, comment_func or None, type shorthand.
+    # parser_func, marshaller_func/None, comment_func/None, type shorthand.
     # The type shorthand is only useful for upgrade_colors right now.
     _keytable = None
     _files = None
@@ -169,30 +169,33 @@ class _ThemeFileVersion (object):
         self._keytable = other._keytable.copy() if other else dict()
         self._files = other._files.copy() if other else dict()
 
+    def _add (self, iterable, info):
+        for k in iterable:
+            self._keytable[k] = info
+
+    def set_readonly (self, iterable):
+        for k in iterable:
+            # Remove marshalling function
+            self._keytable[k][1] = None
+
     #{{{ add_DATATYPE methods
     def add_color48 (self, iterable):
-        for k in iterable:
-            self._keytable[k] = (color.parsehex, color.to48,
-                                 self._comment_color, 'c48')
+        self._add(iterable, (color.parsehex, color.to48,
+                             self._comment_color, 'c48'))
 
     def add_color24 (self, iterable):
-        for k in iterable:
-            self._keytable[k] = (color.parsehex, color.to24,
-                                 self._comment_color, 'c24')
+        self._add(iterable, (color.parsehex, color.to24,
+                             self._comment_color, 'c24'))
 
     def add_str (self, iterable):
-        for k in iterable:
-            self._keytable[k] = (self._parse_str, self._to_str, None, 's')
+        self._add(iterable, (self._parse_str, self._to_str, None, 's'))
 
     def add_unicode (self, iterable):
-        for k in iterable:
-            self._keytable[k] = (self._parse_unicode, self._to_unicode,
-                                 None, 'u')
+        self._add(iterable, (self._parse_unicode, self._to_unicode,
+                             None, 'u'))
 
     def add_bool (self, iterable):
-        for k in iterable:
-            self._keytable[k] = (self._parse_bool, self._to_bool,
-                                 None, 'b')
+        self._add(iterable, (self._parse_bool, self._to_bool, None, 'b'))
     #}}}
 
     #{{{ Version 1.2 feature support
@@ -215,6 +218,11 @@ class _ThemeFileVersion (object):
     #{{{ Main parse/marshal/comment methods
     def has_key (self, k):
         return k in self._keytable
+
+    def writable_key (self, k):
+        if k in self._keytable and self._keytable[k][1] is not None:
+            return True
+        return False
 
     def parse_value (self, k, v):
         parse_fn = self._keytable[k][0]
@@ -256,18 +264,21 @@ class _ThemeFileVersion (object):
 
 v1 = _ThemeFileVersion()
 v1.add_color24(["color%d" % i for i in range(16)])
-v1.add_color24("fgcolor bgcolor".split())
+v1.add_color24("fgcolor bgcolor fgbold".split())
 v1.add_str("name font cursor_shape".split())
-v1.add_bool("allow_bold force_font".split())
+v1.add_bool("allow_bold force_font use_fgbold".split())
 
 v1_2 = _ThemeFileVersion(v1)
 v1_2.upgrade_colors()
-v1_2.add_color48("fgbold bgbold fgcursor bgcursor".split())
-v1_2.add_bool("use_fgbold".split())
+v1_2.add_color48("bgbold fgcursor bgcursor".split())
 # overrides the str type in v1
 v1_2.add_unicode("name font cursor_shape".split())
 
 v1_2.add_archive_files(dict(credits="credits.txt"))
+
+# Now that v1_2 has taken these as r/w, set them r/o for v1.
+# This lets us read v1.1 themes and write v1.0 themes.
+v1.set_readonly("fgbold use_fgbold".split())
 
 _versions = [('1_2', v1_2), ('1', v1)]
 
@@ -404,7 +415,7 @@ class ThemeFile (object):
     def _format_version (self, profile, ver, m):
         lines = ["[Termitheme%s]\n" % ver, "name = %s\n" % profile.name]
         for k,v in sorted(profile.items()):
-            if not m.has_key(k):
+            if not m.writable_key(k):
                 continue
             comment = m.comment_value(k, v)
             if comment:
