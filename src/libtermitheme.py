@@ -163,47 +163,52 @@ class _ThemeFileVersion (object):
     # parser_func, marshaller_func/None, comment_func/None, type shorthand.
     # The type shorthand is only useful for upgrade_colors right now.
     _keytable = None
+    _readonly = None
     _files = None
+    _fns = None
 
     def __init__ (self, other=None):
-        self._keytable = other._keytable.copy() if other else dict()
-        self._files = other._files.copy() if other else dict()
+        self._keytable = other._keytable.copy() if other else {}
+        self._files = other._files.copy() if other else {}
+        self._readonly = other._readonly.copy() if other else set()
+        self._fns = {
+            'c48': (color.parsehex, color.to48, self._comment_color),
+            'c24': (color.parsehex, color.to24, self._comment_color),
+            's': (self._parse_str, self._to_str, None),
+            'u': (self._parse_unicode, self._to_unicode, None),
+            'b': (self._parse_bool, self._to_bool, None),
+        }
 
-    def _add (self, iterable, info):
+    def _add (self, iterable, typename):
         for k in iterable:
-            self._keytable[k] = info
+            self._keytable[k] = typename
 
     def set_readonly (self, iterable):
         for k in iterable:
-            # Remove marshalling function
-            self._keytable[k][1] = None
+            self._readonly.add(k)
 
     #{{{ add_DATATYPE methods
     def add_color48 (self, iterable):
-        self._add(iterable, [color.parsehex, color.to48,
-                             self._comment_color, 'c48'])
+        self._add(iterable, 'c48')
 
     def add_color24 (self, iterable):
-        self._add(iterable, [color.parsehex, color.to24,
-                             self._comment_color, 'c24'])
+        self._add(iterable, 'c24')
 
     def add_str (self, iterable):
-        self._add(iterable, [self._parse_str, self._to_str, None, 's'])
+        self._add(iterable, 's')
 
     def add_unicode (self, iterable):
-        self._add(iterable, [self._parse_unicode, self._to_unicode,
-                             None, 'u'])
+        self._add(iterable, 'u')
 
     def add_bool (self, iterable):
-        self._add(iterable, [self._parse_bool, self._to_bool, None, 'b'])
+        self._add(iterable, 'b')
     #}}}
 
     #{{{ Version 1.2 feature support
     def upgrade_colors (self):
         for k, v in self._keytable.items():
-            if v[-1] == 'c24':
-                self._keytable[k] = [color.parsehex, color.to48,
-                                     self._comment_color, 'c48']
+            if v == 'c24':
+                self._keytable[k] = 'c48'
 
     def add_archive_files (self, mapping):
         self._files.update(mapping)
@@ -220,20 +225,23 @@ class _ThemeFileVersion (object):
         return k in self._keytable
 
     def writable_key (self, k):
-        if k in self._keytable and self._keytable[k][1] is not None:
+        if k in self._keytable and k not in self._readonly:
             return True
         return False
 
     def parse_value (self, k, v):
-        parse_fn = self._keytable[k][0]
+        typename = self._keytable[k]
+        parse_fn = self._fns[typename][0]
         return parse_fn(v)
 
     def marshal_value (self, k, v):
-        marshal_fn = self._keytable[k][1]
+        typename = self._keytable[k]
+        marshal_fn = self._fns[typename][1]
         return marshal_fn(v)
 
     def comment_value (self, k, v):
-        comment_fn = self._keytable[k][2]
+        typename = self._keytable[k]
+        comment_fn = self._fns[typename][2]
         if comment_fn:
             return '; %s\n' % comment_fn(v)
         return None
