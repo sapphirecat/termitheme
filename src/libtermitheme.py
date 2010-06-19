@@ -3,6 +3,7 @@
 # BATTERIES INCLUDED
 from contextlib import contextmanager
 import ConfigParser
+import codecs
 import datetime
 import locale
 import optparse
@@ -979,6 +980,24 @@ class PuttyWinIO (TerminalIOBase):
         m, t = self._theme_types[typename][1:3]
         v = m(value) if m else value
         return (t, v)
+
+    def _putty_name (self, raw_name):
+        # encoding based on examination of WINDOWS/WINSTORE.C mungestr()
+        always_encode = ' \\*?%.'
+        dot_ok = False
+        out = []
+        hex_encode = codecs.getencoder('hex_codec')
+        for c in raw_name:
+            printable = ord(' ') <= ord(c) <= ord('~')
+            if c in always_encode or not printable:
+                out.append("%" + hex_encode(c)[0])
+            else:
+                out.append(c)
+            if not dot_ok:
+                dot_ok = True
+                always_encode = always_encode.rstrip('.')
+        return ''.join(out)
+
 
     def _winreg_map (self, winreg_method, key): #{{{
         rv = []
