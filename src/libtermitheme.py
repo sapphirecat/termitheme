@@ -34,9 +34,8 @@ locale.setlocale(locale.LC_ALL, '')
 CHARSETS = []
 try:
     CHARSETS.append(locale.nl_langinfo(locale.CODESET))
-except AttributeError: # win32! let's fake it good
-    if sys.stdout.encoding:
-        CHARSETS.append(sys.stdout.encoding)
+except AttributeError: # win32! let's fake it.
+    CHARSETS.append('mbcs')
 # Fall back on UTF-8 as the West is headed that direction by default
 if not CHARSETS or not re.match(r'utf-8$', CHARSETS[0], re.I):
     CHARSETS.append('utf-8')
@@ -416,6 +415,7 @@ class ThemeFile (object):
         zf = zipfile.ZipFile(self.filename, 'w') # FIXME: binary/unicode
         zf.writestr(self._zipinfo('theme.ini'), data) # main theme
         for key, content in self._files.items(): # other archive files
+            # These names I control, so they are always ASCII
             name = spec.get_archive_file(key)
             zf.writestr(self._zipinfo(name), content.encode('utf-8'))
         zf.close()
@@ -966,7 +966,14 @@ class PuttyWinIO (TerminalIOBase):
     #}}}
 
     def _session_key (self, name):
-        return self.SESSIONS_DIR + '\\' + name
+        return self.SESSIONS_DIR + '\\' + self._unicode_name(name)
+
+    def _unicode_name (self, name):
+        for cset in try_csets:
+            try:
+                uni_name = name.decode(cset, 'strict')
+            except UnicodeError:
+                pass
 
     def _reg_serial (self, typename, value):
         m, t = self._theme_types[typename][1:3]
