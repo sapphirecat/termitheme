@@ -27,6 +27,8 @@ def parse_args (argv):
     return p.parse_args(argv[1:])
 
 def main (argv=None, filename=None):
+    global CHARSET
+
     if not (argv or filename):
         usage("A filename is required, either through argv or filename.")
     elif not argv:
@@ -59,7 +61,8 @@ def main (argv=None, filename=None):
             if c is None:
                 print "No credits are available for this theme."
             else:
-                print c.encode(sys.stdout.encoding, 'xmlcharrefreplace')
+                print c.encode(sys.stdout.encoding or CHARSET,
+                               'xmlcharrefreplace')
             sys.exit(0)
         except Exception, e:
             p_err("Error reading credits: '%s'" % e.args[0])
@@ -103,6 +106,9 @@ def main (argv=None, filename=None):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    argv = sys.argv
+    if sys.platform.startswith("win"):
+        argv = win32_unicode_argv()
+    main(argv)
     sys.exit(0)
 

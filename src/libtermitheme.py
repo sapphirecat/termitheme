@@ -15,8 +15,6 @@ import time
 import zipfile
 
 # PLATFORM SUPPORT
-# Unfortunately, I don't see a way to detect whether these are available,
-# short of importing the module whether we'll use them or not.
 # TODO: Check into supporting PuTTY on Linux
 
 try:
@@ -32,18 +30,29 @@ except ImportError:
 # Post-import platform support
 # Bust us out of 'C' locale
 locale.setlocale(locale.LC_ALL, '')
-CHARSETS = []
+CHARSET = None
 try:
-    CHARSETS.append(locale.nl_langinfo(locale.CODESET))
-except AttributeError: # win32! let's fake it.
-    CHARSETS.append('mbcs')
-# Fall back on UTF-8 as the West is headed that direction by default
-if not CHARSETS or not re.match(r'utf-8$', CHARSETS[0], re.I):
-    CHARSETS.append('utf-8')
+    CHARSET = locale.nl_langinfo(locale.CODESET)
+except AttributeError:
+    # fall back to ANSI code page on win32
+    if sys.platform.startswith("win"):
+        CHARSET = 'mbcs'
+if not CHARSET:
+    CHARSET = 'utf-8'
 
 
 #{{{ Character set conversion for command line etc.
-def win32_unicode_argv():
+
+# Always return Unicode for the win32 dual-API
+def _sys_filename_win32 (name):
+    return name.decode(CHARSET) if isinstance(name, str) else name
+
+if sys.platform.startswith("win"):
+    sys_filename = _sys_filename_win32
+else:
+    sys_filename = lambda s: s
+
+def win32_unicode_argv ():
     """Uses shell32.GetCommandLineArgvW to get sys.argv as a list of Unicode
     strings.
 
@@ -360,9 +369,8 @@ class ThemeFile (object):
         return self._files['credits']
 
     def _set_file (self, key, filename):
-        with open(filename) as f:
-            txt = f.read()
-        self._files['credits'] = self._decode(txt, filename)
+        with codecs.open(sys_filename(filename), 'r', CHARSET) as f:
+            self._files['credits'] = f.read()
 
     def _get_file (self, key):
         try:
@@ -385,15 +393,6 @@ class ThemeFile (object):
 
         # All versions supported it, but it still wasn't found
         return None
-
-    def _decode (self, txt, filename):
-        for cset in CHARSETS:
-            try:
-                return txt.decode(cset, 'strict')
-            except UnicodeError:
-                pass
-        # UnicodeDecodeError() takes 5 arguments (1 given)
-        raise ValueError("Illegal characters in file '%s'" % filename)
     #}}}
 
     def read_open (self):

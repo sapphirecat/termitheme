@@ -16,10 +16,14 @@ def parse_args (argv):
     ao("-t", "--terminal", dest="terminal", metavar="TYPE",
        default=terminal.default_type,
        help=t_help)
+    ao("-U", "--utf-8", "--utf8", dest="utf8", action="store_true",
+       help="Treat files as containing UTF-8 character data")
 
     return p.parse_args(argv[1:])
 
 def main (argv=None, profile=None, filename=None):
+    global CHARSET
+
     if not (argv or profile):
         usage("Either argv or profile is required.")
     elif not argv:
@@ -37,6 +41,9 @@ def main (argv=None, profile=None, filename=None):
         usage("Too many arguments.")
 
     profile_name, filename = args
+
+    if opts.utf8:
+        CHARSET = 'utf-8'
 
     try:
         io = terminal.get_io(opts.terminal)
@@ -67,6 +74,9 @@ def main (argv=None, profile=None, filename=None):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    argv = sys.argv
+    if sys.platform.startswith("win"):
+        argv = win32_unicode_argv()
+    main(argv)
     sys.exit(0)
 
