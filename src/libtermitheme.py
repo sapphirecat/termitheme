@@ -605,7 +605,10 @@ def _gconf_unbox_primitive (v): #{{{
 
     try:
         m = getattr(v, 'get_' + v.type.value_nick)
-        return m()
+        rv = m()
+        if v.type.value_nick == 'string' and rv:
+            return rv.decode('utf-8')
+        return rv
     except AttributeError:
         raise TypeError("GConf type is not primitive: %s" %
                         v.type.value_nick)
@@ -623,6 +626,8 @@ def _gconf_box_primitive (v, gtype=None): #{{{
     # This may be a Python2-ism
     if isinstance(v, basestring):
         t = gconf.VALUE_STRING
+        if isinstance(v, unicode):
+            v = v.encode('utf-8')
     elif isinstance(v, bool):
         t = gconf.VALUE_BOOL
     elif isinstance(v, float):
@@ -750,7 +755,7 @@ class GnomeTerminalIO (TerminalIOBase):
         max_prof = None
         for dir in c.get_list(self.PROFILE_LIST, gconf.VALUE_STRING):
             name = c.get_string(self.PROFILE_ROOT + '/' + dir +
-                                self.PROFILE_NAME)
+                                self.PROFILE_NAME).decode('utf-8')
             path[name] = self.PROFILE_ROOT + '/' + dir + '/'
             if name.startswith("Profile"):
                 if not max_prof or int(name[7:]) > max_prof:
@@ -845,7 +850,7 @@ class GnomeTerminalIO (TerminalIOBase):
         # Special keys
         c.set_string(path + 'palette',
                      self._get_palette_from_profile(profile))
-        c.set_string(path + 'visible_name', profile.name)
+        c.set_string(path + 'visible_name', profile.name.encode('utf-8'))
 
         if isinstance(c, MockGConf):
             return
