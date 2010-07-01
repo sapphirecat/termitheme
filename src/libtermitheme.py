@@ -347,7 +347,7 @@ class ThemeFile (object):
     version = None
 
     def __init__ (self, filename, profile_class=None):
-        self.filename = filename
+        self.filename = sys_filename(filename)
         if not profile_class:
             profile_class = TerminalProfile
         self._profile_ctor = profile_class
