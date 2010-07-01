@@ -74,9 +74,11 @@ def main (argv=None, profile=None, filename=None):
 
 
 if __name__ == '__main__':
-    argv = sys.argv
     if sys.platform.startswith("win"):
         argv = win32_unicode_argv()
+    else:
+        argv = [a.decode(CHARSET) if isinstance(a, str) else a
+                for a in sys.argv]
     main(argv)
     sys.exit(0)
 

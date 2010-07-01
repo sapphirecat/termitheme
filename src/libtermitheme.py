@@ -452,8 +452,9 @@ class ThemeFile (object):
 
         if os.path.exists(self.filename):
             raise ValueError("File '%s' exists." % self.filename)
-        zf = zipfile.ZipFile(self.filename, 'w') # FIXME: binary/unicode
-        zf.writestr(self._zipinfo('theme.ini'), data) # main theme
+        zf = zipfile.ZipFile(self.filename, 'w')
+        # main theme
+        zf.writestr(self._zipinfo('theme.ini'), data.encode('utf-8'))
         for key, content in self._files.items(): # other archive files
             # These names I control, so they are always ASCII
             name = spec.get_archive_file(key)
