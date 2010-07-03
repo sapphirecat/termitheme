@@ -6,6 +6,7 @@ Contents
     * RUNNING
 	* Import Examples
 	* Export Examples
+	* Character Sets
     * PROJECT PAGE
     * SUBMITTING THEMES TO THE GALLERY
 
@@ -38,6 +39,7 @@ REQUIREMENTS
 
 	* Python 2, 2.5+ (Python 3.x is currently not supported)
 	* Gnome: Python Gconf bindings
+	* Windows: Windows-native Python executable--not Cygwin
 
 Termitheme is designed to be self-contained, and run from any folder,
 without requiring installation.  However, it does require Python 2.5 or a
@@ -141,8 +143,38 @@ export.py to include it:
 
 	$ ./export.py -c CREDITS Minotaur
 
-(This file should be in the encoding of your current locale.  If you don't
-know what this means, it is most likely that way by default.)
+This file should be in the encoding of your current locale on Unix, or the
+ANSI code page on Windows.  The credits can also be in UTF-8 format; in that
+case, use the --utf-8 (-U) switch to let export.py know:
+
+	$ ./export.py -U -c CREDITS Minotaur
+
+For more details on termitheme's character set handling, see the next
+section.
+
+
+Character Sets
+--------------
+
+termitheme attempts to use the system locale or ANSI code page by default;
+this means that it's supposed to just work, without mangling characters as
+the theme file moves between systems.  If the system locale is not what is
+desired, for instance if the credits file should contain Cyrillic characters
+when a Western European locale is active, then termitheme provides the
+option of interpreting the credits file as UTF-8 instead.
+
+Because the command line is processed before the UTF-8 option can take
+effect, the command line is always interpreted according to the current
+locale on Unix.  Therefore, filenames on Unix must be readable or writable
+in the current locale.
+
+On Windows, the command line is fetched in Unicode format from the Win32
+API, and Unicode names should always be used when reading or writing files.
+In this case, the ANSI code page should not matter.
+
+Cygwin's Python is not officially supported, since it never calls the
+Unicode versions of the Windows API, and therefore files may exist on the
+system which cannot be opened by Cygwin.
 
 
 PROJECT PAGE
