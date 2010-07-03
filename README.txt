@@ -74,7 +74,7 @@ You can import it under a different name with the --name (-n) option:
 
 For settings not stored in the theme file, such as select-by-word characters
 and compatibility options, import.py copies the settings from the default
-profile. To use a differet profile, use the --base (-b) option:
+profile. To use a different profile, use the --base (-b) option:
 
 	$ ./import.py --base Minotaur BlackRock.zip
 
