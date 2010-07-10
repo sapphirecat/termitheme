@@ -1,0 +1,5 @@
+/*.py
+/ext-data/
+*.pyc
+*.pyo
+test.*
