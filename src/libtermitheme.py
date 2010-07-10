@@ -1012,21 +1012,18 @@ class PuttyWinIO (TerminalIOBase):
     #}}}
 
     def _session_key (self, name):
-        return self.SESSIONS_DIR + '\\' + self._unicode_name(name)
-
-    def _unicode_name (self, name):
-        for cset in try_csets:
-            try:
-                uni_name = name.decode(cset, 'strict')
-            except UnicodeError:
-                pass
+        return self.SESSIONS_DIR + '\\' + self._putty_name(name)
 
     def _reg_serial (self, typename, value):
         m, t = self._theme_types[typename][1:3]
         v = m(value) if m else value
         return (t, v)
 
-    def _putty_name (self, raw_name):
+    def _putty_name (self, in_name):
+        if isinstance(in_name, unicode): # expected
+            raw_name = in_name.encode('mbcs', 'replace')
+        else: # weird
+            raw_name = in_name
         # encoding based on examination of WINDOWS/WINSTORE.C mungestr()
         always_encode = ' \\*?%.'
         dot_ok = False
