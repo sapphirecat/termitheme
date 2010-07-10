@@ -1,16 +1,3 @@
-Contents
-########
-    * OVERVIEW
-    * QUICK START
-    * REQUIREMENTS
-    * RUNNING
-	* Import Examples
-	* Export Examples
-	* Character Sets
-    * PROJECT PAGE
-    * SUBMITTING THEMES TO THE GALLERY
-
-
 OVERVIEW
 ========
 
@@ -180,8 +167,9 @@ system which cannot be opened by Cygwin.
 PROJECT PAGE
 ============
 
-Termitheme: http://www.sapphirepaw.org/projects/termitheme.php
-Theme gallery: http://www.sapphirepaw.org/projects/themes/
+* Termitheme: http://www.sapphirepaw.org/projects/termitheme.php
+* Theme gallery: http://www.sapphirepaw.org/projects/themes/
+* Development: http://github.com/sapphirecat/termitheme
 
 
 SUBMITTING THEMES TO THE GALLERY
