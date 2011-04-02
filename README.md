@@ -36,7 +36,7 @@ python-gconf package for Debian, Ubuntu, and derivatives, or
 gnome-python2-gconf in Fedora.  These packages may be installed by default
 in your distribution.  The current compatibility goals are Ubuntu 8.04
 through 10.04 (Hardy Heron to Lucid Lynx).  Termitheme 1.2 has also been
-tested on Fedora 7 and 13, Debian 5.0/lenny, and Ubuntu 11.04/natty beta.
+tested on Fedora 7 and 14, Debian 5.0/lenny, and Ubuntu 11.04/natty beta.
 
 
 RUNNING
