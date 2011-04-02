@@ -35,9 +35,8 @@ additionally requires the Python gconf bindings.  These are available in the
 python-gconf package for Debian, Ubuntu, and derivatives, or
 gnome-python2-gconf in Fedora.  These packages may be installed by default
 in your distribution.  The current compatibility goals are Ubuntu 8.04
-through 10.04 (Hardy Heron to Lucid Lynx).  Termitheme 1.2 should be
-compatible with Fedora Core 7 through 12 and Debian 5.0 (lenny) as well, but
-these platforms have not been tested.
+through 10.04 (Hardy Heron to Lucid Lynx).  Termitheme 1.2 has also been
+tested on Fedora 7 and 13, Debian 5.0/lenny, and Ubuntu 11.04/natty beta.
 
 
 RUNNING
