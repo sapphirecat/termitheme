@@ -108,35 +108,35 @@ Import Examples
 To load a theme, use the import command and give it the theme file as the
 argument:
 
-	$ python . import BlackRock.zip
+	$ python . import samples/BlackRock.zip
 
 You can import it under a different name with the --name (-n) option:
 
-	$ python . import --name "Dark Heat" BlackRock.zip
+	$ python . import --name "Dark Heat" samples/BlackRock.zip
 
 For settings not stored in the theme file, such as select-by-word characters
 and compatibility options, import copies the settings from the default
 profile. To use a different profile, use the --base (-b) option:
 
-	$ python . import --base Minotaur BlackRock.zip
+	$ python . import --base Minotaur samples/BlackRock.zip
 
 If you already have a profile named BlackRock and you try to import a theme
 named BlackRock, termitheme will keep the existing profile data by default.
 If you wish to replace the profile with the data in the theme file, use the
 --overwrite (-o) switch:
 
-	$ python . import --overwrite BlackRock.zip
+	$ python . import --overwrite samples/BlackRock.zip
 
 Of course, all of these options may be combined. To load a theme from
 BlackRock.zip, basing it on the Minotaur profile, naming it Dark Heat, and
 possibly overwriting an existing Dark Heat theme:
 
-	$ python . import -o -b Minotaur -n "Dark Heat" BlackRock.zip
+	$ python . import -o -b Minotaur -n "Dark Heat" samples/BlackRock.zip
 
 There is one other option: as of termitheme-1.2, theme files may contain
 credits, which can be viewed with the --credits (-c) switch:
 
-	$ python . import -c BlackRock.zip
+	$ python . import -c samples/BlackRock.zip
 
 When -c is given, the theme credits are printed, and termitheme quits
 instead of taking any action. The -c switch takes precedence over the other
