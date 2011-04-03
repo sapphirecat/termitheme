@@ -25,7 +25,7 @@ def usage (argv, e=None):
 
 class PrintVersion (commands.Command):
     cmdname = "version"
-    usage_extended = None
+    usage_extended = ''
     def run (self, argv):
         if argv and len(argv) > 1:
             p = self.get_parser(argv[0])
