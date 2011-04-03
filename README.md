@@ -1,25 +1,38 @@
 OVERVIEW
 ========
 
-termitheme is a pair of scripts to help share color schemes for your
-terminals with the world.  Termitheme 1.2 supports gnome-terminal on the
-Gnome desktop, and PuTTY on Windows.  Some features of gnome-terminal, such
-as transparent or image backgrounds, are not supported and will be copied
-unchanged from an existing profile.  Likewise, many PuTTY features are not
-stored in the theme files, and will be copied from an existing PuTTY
+termitheme is a command-line application to help share color schemes for
+your terminals with the world.  Termitheme 1.5 supports gnome-terminal on
+the Gnome desktop, and PuTTY on Windows.  Some features of gnome-terminal,
+such as transparent or image backgrounds, are not supported and will be
+copied unchanged from an existing profile.  Likewise, many PuTTY features
+are not stored in the theme files, and will be copied from an existing PuTTY
 configuration.
 
 
 QUICK START
 ===========
 
-	$ unzip termitheme-1.2.zip
-	$ cd termitheme-1.2
-	$ ./import.py BlackRock.zip
+Python 2.5
+----------
+
+	$ unzip termitheme-1.5.zip
+	$ cd termitheme-1.5
+	$ python __main__.py import samples/BlackRock.zip
 	Saved theme 'BlackRock' as 'BlackRock' (based on Default)
-	$ ./export.py -n Newspeak BlackRock
+	$ python __main__.py export -n Newspeak BlackRock
 	Exported theme 'BlackRock' as 'Newspeak' to Newspeak.zip
-	$
+
+Python 2.6/2.7
+--------------
+
+	$ unzip termitheme-1.5.zip
+	$ cd termitheme-1.5
+	$ python . import samples/BlackRock.zip
+	Saved theme 'BlackRock' as 'BlackRock' (based on Default)
+	$ python . export -n Newspeak BlackRock
+	Exported theme 'BlackRock' as 'Newspeak' to Newspeak.zip
+
 
 REQUIREMENTS
 ============
@@ -35,7 +48,7 @@ additionally requires the Python gconf bindings.  These are available in the
 python-gconf package for Debian, Ubuntu, and derivatives, or
 gnome-python2-gconf in Fedora.  These packages may be installed by default
 in your distribution.  The current compatibility goals are Ubuntu 8.04
-through 10.04 (Hardy Heron to Lucid Lynx).  Termitheme 1.2 has also been
+through 10.04 (Hardy Heron to Lucid Lynx).  Termitheme 1.5 has also been
 tested on Fedora 7 and 14, Debian 5.0/lenny, and Ubuntu 11.04/natty beta.
 
 
@@ -43,58 +56,87 @@ RUNNING
 =======
 
 Starting with version 1.2, termitheme is distributed as an all-inclusive zip
-file, containing this README file; import.py and export.py scripts; the
-components of the scripts in the src directory; and a Makefile for building
-import.py and export.py from the sources.  After extracting the zip file,
-open a terminal or command prompt and cd to the newly created termitheme-1.2
-folder.
+file, containing this README file; __main__.py, which can be used to execute
+the project without installing; the installable bin/termitheme script and
+termitheme module; and the all-important LICENSE file.
 
-The commands below are given for Gnome with a compatible python version in
-the default path. You may need to precede the commands shown with 'python2',
-'python2.7', or "C:\Python26\python". E.g. the first import example would
+After extracting the zip file, open a terminal or command prompt and cd to
+the newly created termitheme-VERSION folder.
+
+
+A Word About Python Versions
+----------------------------
+
+Due to evolving support for module imports over the supported versions of
+Python, there are several ways to run termitheme in-place.  The first way,
+which will work on any version of Python, is to run __main__.py with Python.
+For example:
+
+	$ python __main__.py import samples/BlackRock.zip
+
+Python 2.6 also supports running a directory as a file, using the
+__main__.py file found in that directory.  Thus, the above example can be
+simplified to:
+
+	$ python . import samples/BlackRock.zip
+
+If you choose to install termitheme, then the command on all versions
+becomes:
+
+	$ termitheme import samples/BlackRock.zip
+
+All examples in the sections below are given with the Python 2.6-compatible
+syntax.  You will have to adjust the commands accordingly if using Python
+2.5, or the installed version.
+
+Commands beginning with "python" are given for Gnome with a compatible
+python version in the default path. You may need to precede the commands
+shown with a specific version or full path, such as 'python2', 'python2.7',
+or "C:\Python26\python". In that case, the first import example might
 become:
 
-	$ python2.7 ./import.py BlackRock.zip
+	$ python2.7 . import samples/BlackRock.zip
 
 Or on Windows, using a Python 2.6 installation:
 
-	$ C:\Python26\python ./import.py BlackRock.zip 
+	$ C:\Python26\python . import samples/BlackRock.zip 
 
 
 Import Examples
 ---------------
 
-To load a theme, run import.py and give it the theme file as the argument:
+To load a theme, use the import command and give it the theme file as the
+argument:
 
-	$ ./import.py BlackRock.zip
+	$ python . import BlackRock.zip
 
 You can import it under a different name with the --name (-n) option:
 
-	$ ./import.py --name "Dark Heat" BlackRock.zip
+	$ python . import --name "Dark Heat" BlackRock.zip
 
 For settings not stored in the theme file, such as select-by-word characters
-and compatibility options, import.py copies the settings from the default
+and compatibility options, import copies the settings from the default
 profile. To use a different profile, use the --base (-b) option:
 
-	$ ./import.py --base Minotaur BlackRock.zip
+	$ python . import --base Minotaur BlackRock.zip
 
 If you already have a profile named BlackRock and you try to import a theme
 named BlackRock, termitheme will keep the existing profile data by default.
 If you wish to replace the profile with the data in the theme file, use the
 --overwrite (-o) switch:
 
-	$ ./import.py --overwrite BlackRock.zip
+	$ python . import --overwrite BlackRock.zip
 
 Of course, all of these options may be combined. To load a theme from
 BlackRock.zip, basing it on the Minotaur profile, naming it Dark Heat, and
 possibly overwriting an existing Dark Heat theme:
 
-	$ ./import.py -o -b Minotaur -n "Dark Heat" BlackRock.zip
+	$ python . import -o -b Minotaur -n "Dark Heat" BlackRock.zip
 
 There is one other option: as of termitheme-1.2, theme files may contain
 credits, which can be viewed with the --credits (-c) switch:
 
-	$ ./import.py -c BlackRock.zip
+	$ python . import -c BlackRock.zip
 
 When -c is given, the theme credits are printed, and termitheme quits
 instead of taking any action. The -c switch takes precedence over the other
@@ -104,36 +146,36 @@ options.
 Export Examples
 ---------------
 
-To export a theme, use export.py with a profile name:
+To export a theme, use the export command with a profile name:
 
-	$ ./export.py Minotaur
+	$ python . export Minotaur
 
 A filename can follow the theme name, to save it to a specific file (but the
 theme will still import under the name Minotaur by default):
 
-	$ ./export.py Minotaur Taurus.zip
+	$ python . export Minotaur Taurus.zip
 
 The theme name inside the exported file can be set with the --name (-n)
 option. This will produce Taurus.zip:
 
-	$ ./export.py -n Taurus Minotaur
+	$ python . export -n Taurus Minotaur
 
 Combining the previous two examples, to produce a theme named Taurus inside
 Bullish.zip:
 
-	$ ./export.py -n Taurus Minotaur Bullish.zip
+	$ python . export -n Taurus Minotaur Bullish.zip
 
-To include a message to be printed with import.py -c, create a file
+To include a message to be printed with import -c, create a file
 containing the credits information, and use the --credits (-c) option of
-export.py to include it:
+export to include it:
 
-	$ ./export.py -c CREDITS Minotaur
+	$ python . export -c CREDITS Minotaur
 
 This file should be in the encoding of your current locale on Unix, or the
 ANSI code page on Windows.  The credits can also be in UTF-8 format; in that
-case, use the --utf-8 (-U) switch to let export.py know:
+case, use the --utf-8 (-U) switch to let the export command know:
 
-	$ ./export.py -U -c CREDITS Minotaur
+	$ python . export -U -c CREDITS Minotaur
 
 For more details on termitheme's character set handling, see the next
 section.
@@ -166,8 +208,8 @@ system which cannot be opened by Cygwin.
 PROJECT PAGE
 ============
 
-* Termitheme: http://www.sapphirepaw.org/projects/termitheme.php
-* Theme gallery: http://www.sapphirepaw.org/projects/themes/
+* Termitheme: http://www.sapphirepaw.org/termitheme/
+* Theme gallery: http://www.sapphirepaw.org/termitheme/themes.php
 * Development: http://github.com/sapphirecat/termitheme
 
 
