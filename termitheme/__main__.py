@@ -31,7 +31,7 @@ class PrintVersion (commands.Command):
             p = self.get_parser(argv[0])
             p.parse_args(['--help'])
         else:
-            print "termitheme version %s" % VERSION
+            print "termitheme version %s (%s)" % (VERSION, version.family)
             return 0
 
 

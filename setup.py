@@ -10,6 +10,7 @@ import time
 PKG_NAME = 'termitheme'
 PKG_URL = 'http://www.sapphirepaw.org/termitheme/'
 VERSION = '1.5a'
+CODENAME = 'By Humans For Humans'
 _VERSION_FILE = PKG_NAME + '/version.py'
 
 short_desc = 'Terminal theme importer/exporter'
@@ -51,6 +52,7 @@ def write_version (filename, version):
     with open(filename, 'w') as f:
         f.write("version = %s\n" % repr(version))
         f.write("revision = %s\n" % repr(get_revision()))
+        f.write("family = %s\n" % repr(CODENAME))
         f.write("build_time = %f\n" % time.time())
 
 
