@@ -56,7 +56,7 @@ RUNNING
 =======
 
 Starting with version 1.2, termitheme is distributed as an all-inclusive zip
-file, containing this README file; __main__.py, which can be used to execute
+file, containing this README file; \_\_main\_\_.py, which can be used to execute
 the project without installing; the installable bin/termitheme script and
 termitheme module; and the all-important LICENSE file.
 
@@ -69,13 +69,13 @@ A Word About Python Versions
 
 Due to evolving support for module imports over the supported versions of
 Python, there are several ways to run termitheme in-place.  The first way,
-which will work on any version of Python, is to run __main__.py with Python.
+which will work on any version of Python, is to run \_\_main\_\_.py with Python.
 For example:
 
 	$ python __main__.py import samples/BlackRock.zip
 
 Python 2.6 also supports running a directory as a file, using the
-__main__.py file found in that directory.  Thus, the above example can be
+\_\_main\_\_.py file found in that directory.  Thus, the above example can be
 simplified to:
 
 	$ python . import samples/BlackRock.zip
