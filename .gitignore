@@ -1,4 +1,4 @@
-/*.py
+/build/*
 /ext-data/
 *.pyc
 *.pyo

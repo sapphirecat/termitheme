@@ -1,18 +1,18 @@
 #vim600:fdm=marker
 
+from __future__ import absolute_import, division, with_statement
+
 # BATTERIES INCLUDED
-from contextlib import contextmanager
-import ConfigParser
-import codecs
-import datetime
-import locale
-import optparse
-import os.path
-import re
-import StringIO # Python2.5 compatible hackery
-import sys
-import time
-import zipfile
+from contextlib import contextmanager # here
+import ConfigParser # here
+import codecs # here
+import datetime # here
+import os.path # both
+import re # here
+import StringIO # here; Python2.5 compatible hackery
+import sys # both
+import time # here
+import zipfile # here
 
 # PLATFORM SUPPORT
 # TODO: Check into supporting PuTTY on Linux
@@ -27,18 +27,8 @@ try:
 except ImportError:
     _winreg = None
 
-# Post-import platform support
-# Bust us out of 'C' locale
-locale.setlocale(locale.LC_ALL, '')
-CHARSET = None
-try:
-    CHARSET = locale.nl_langinfo(locale.CODESET)
-except AttributeError:
-    # fall back to ANSI code page on win32
-    if sys.platform.startswith("win"):
-        CHARSET = 'mbcs'
-if not CHARSET:
-    CHARSET = 'utf-8'
+# Establish a default character set for everything
+CHARSET = 'utf-8'
 
 
 #{{{ Character set conversion for command line etc.
