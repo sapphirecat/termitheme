@@ -225,8 +225,10 @@ def get_cmd_iter ():
     for i in _handler_order:
         yield (i, _handlers[i])
 
-def register_cmd (handler):
+def register_cmd (handler, force=False):
     n = handler.cmdname
+    if not force and n in _handlers:
+        raise KeyError("Handler for command '%s' is already registered" % n)
     _handlers[n] = handler
     _handler_order.append(n)
 
