@@ -61,7 +61,7 @@ class LocalBuildPy (build_py):
 
 
 def do_setup ():
-    setup(#cmdclass={'build_py': build_py},
+    setup(cmdclass={'build_py': LocalBuildPy},
           name=PKG_NAME,
           version=version,
           description=short_desc,
