@@ -433,14 +433,14 @@ class ThemeFile (object):
         """Read the theme file in self.filename and return a profile."""
         return self.read_profile(self.read_open())
 
-    def write (self, profile):
+    def write (self, profile, force=False):
         """Write the profile into self.filename."""
 
         data = '\n'.join([self._format_version(profile, ver, spec)
                           for ver, spec in _versions])
         spec = _versions[0][1]
 
-        if os.path.exists(self.filename):
+        if os.path.exists(self.filename) and not force:
             raise ValueError("File '%s' exists." % self.filename)
         zf = zipfile.ZipFile(self.filename, 'w')
         # main theme
@@ -1093,19 +1093,6 @@ if gconf:
     terminal._set_io('gnome', GnomeTerminalIO, True)
 if _winreg:
     terminal._set_io('putty', PuttyWinIO, True)
-
-#}}}
-
-
-#{{{ Shared handling helpers for import/export scripts
-
-def p_err (str):
-    print >>sys.stderr, str
-
-def usage (error_msg):
-    p_err(error_msg)
-    p_err("Use --help for details.")
-    sys.exit(2)
 
 #}}}
 

@@ -10,6 +10,10 @@ from . import core
 self_argv0 = __name__
 _handlers = None
 
+
+def p_err (str):
+    print >>sys.stderr, str
+
 class Command (object):
     cmdname = "command"
     usage_extended = "[command's options]"
@@ -44,7 +48,7 @@ class Command (object):
 
 class Export (Command):
     cmdname = "export"
-    usage_extended = "[-c file] [-n name] [-t type] [-U] profile [filename]"
+    usage_extended = "[-c file] [-n name] [-t type] [-w file] [-U] profile"
     def _add_options (self, p):
         t_help = ("Export from terminal type TYPE (available types: %s)" %
                   ", ".join(core.terminal.supported_types()))
@@ -54,9 +58,13 @@ class Export (Command):
            help="Include contents of FILE as credits in the exported file")
         ao("-n", "--name", dest="name", metavar="NAME",
            help="Set the profile name to NAME in the exported file")
+        ao("-o", "--overwrite", dest="overwrite", action="store_true",
+           help="Delete existing output file, if any")
         ao("-t", "--terminal", dest="terminal", metavar="TYPE",
            default=core.terminal.default_type,
            help=t_help)
+        ao("-w", "--write", dest="filename", metavar="FILENAME",
+           help="Write output theme to FILENAME")
         ao("-U", "--utf-8", "--utf8", dest="utf8", action="store_true",
            help="Treat files as containing UTF-8 character data")
 
@@ -65,19 +73,25 @@ class Export (Command):
             self.error("Either argv or profile is required")
         elif not argv:
             argv = ['<%s.cmd_export>' % self_argv0, profile]
-            if filename:
-                argv.append(filename)
 
         (opts, args) = self.parse_argv(argv)
-        real_name = opts.name if opts.name else args[0]
         if len(args) < 1:
             self.error("Missing profile name")
-        elif len(args) == 1:
-            args.append("%s.zip" % real_name)
         elif len(args) > 2:
             self.error("Too many arguments")
 
-        profile_name, filename = args
+        real_name = opts.name if opts.name else args[0]
+        profile_name = args[0]
+
+        # Figure out the filename.
+        # parameter > -w option > positional arg > default
+        if not filename:
+            if opts.filename:
+                filename = opts.filename
+            elif len(args) == 2:
+                filename = args.pop()
+            else:
+                filename = real_name + '.zip'
 
         if opts.utf8:
             core.CHARSET = 'utf-8'
@@ -99,7 +113,7 @@ class Export (Command):
             themefile = core.ThemeFile(filename)
             if opts.credits:
                 themefile.set_credits(opts.credits)
-            themefile.write(dst)
+            themefile.write(dst, opts.overwrite)
         except Exception, e:
             p_err("Failed to write theme to '%s':" % filename)
             p_err("\t%s" % e)
