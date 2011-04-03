@@ -1,22 +1,28 @@
 import locale
+import os.path
 import sys
 from termitheme import core, commands, version
 
 VERSION = version.version
+if version.revision:
+    VERSION += " [rev " + version.revision + "]"
 
 def usage (argv):
-    print "TODO: Usage here"
+    prog = os.path.basename(argv[0])
+    print "Usage: %s <command> [command arguments...]" % prog
+    print
+    print "Available commands:"
+    for cmd,handler_cls in commands.get_cmds().items():
+        handler = handler_cls()
+        handler.show_usage(argv[0])
+    print
+    print "For help on a command, use %s <command> --help" % prog
+    print
     return 2
 
 def print_version ():
     print >>sys.stderr, "termitheme version %s" % VERSION
     return 0
-
-_cmds = {
-    'export': commands.cmd_export,
-    'import': commands.cmd_import,
-    'version': print_version,
-}
 
 # Platform encoding support
 # Bust us out of 'C' locale
@@ -43,8 +49,14 @@ else:
             for a in sys.argv]
 
 mode = usage
+_cmds = commands.get_cmds()
+_cmds['version'] = print_version
+
 if len(argv) > 1 and argv[1] in _cmds:
-    mode = _cmds[argv[1]]
+    # Unwrap the onion....
+    ctor = _cmds[argv[1]] # str  -> type
+    handler = ctor()      # type -> instance
+    mode = handler.run    # instance -> function [bound method]
     del argv[1:2] # consume argument
 
 sys.exit(mode(argv))
