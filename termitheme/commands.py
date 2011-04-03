@@ -10,7 +10,7 @@ from . import core
 self_argv0 = __name__
 _handlers = None
 
-class _Command (object):
+class Command (object):
     cmdname = "command"
     usage_extended = "[command's options]"
     def parse_argv (self, argv):
@@ -18,8 +18,13 @@ class _Command (object):
         return p.parse_args(argv[1:])
 
     def get_parser (self, argv0=None):
-        usage = '%%prog %s %s' % (self.cmdname, self.usage_extended)
-        prog = os.path.basename(argv0)
+        usage = '%prog ' + self.cmdname
+        if self.usage_extended:
+            usage += " " + self.usage_extended
+        if argv0:
+            prog = os.path.basename(argv0)
+        else:
+            prog = None
         p = optparse.OptionParser(prog=prog, usage=usage)
         self._add_options(p)
         return p
@@ -27,14 +32,17 @@ class _Command (object):
     def show_usage (self, argv0=None, outfp=None):
         print "  %s %s" % (self.cmdname, self.usage_extended)
 
+    def error (self, msg):
+        raise Exception("%s; use `%s --help` for help." % (msg, self.cmdname))
+
     def _add_options (self, *args):
-        raise Exception("Method not implemented on subclass")
+        pass
 
     def run (self, argv, *args, **kwargs):
         raise Exception("Method not implemented on subclass")
 
 
-class Export (_Command):
+class Export (Command):
     cmdname = "export"
     usage_extended = "[-c file] [-n name] [-t type] [-U] profile [filename]"
     def _add_options (self, p):
@@ -54,7 +62,7 @@ class Export (_Command):
 
     def run (self, argv=None, profile=None, filename=None):
         if not (argv or profile):
-            usage("Either argv or profile is required.")
+            self.error("Either argv or profile is required")
         elif not argv:
             argv = ['<%s.cmd_export>' % self_argv0, profile]
             if filename:
@@ -63,11 +71,11 @@ class Export (_Command):
         (opts, args) = self.parse_argv(argv)
         real_name = opts.name if opts.name else args[0]
         if len(args) < 1:
-            usage("Missing profile name.")
+            self.error("Missing profile name")
         elif len(args) == 1:
             args.append("%s.zip" % real_name)
         elif len(args) > 2:
-            usage("Too many arguments.")
+            self.error("Too many arguments")
 
         profile_name, filename = args
 
@@ -102,7 +110,7 @@ class Export (_Command):
                                                       filename)
 
 
-class Import (_Command):
+class Import (Command):
     cmdname = "import"
     usage_extended = "{-c | [-b profile] [-n name] [-o] [-t type]} filename"
     def _add_options (self, p):
@@ -124,15 +132,15 @@ class Import (_Command):
 
     def run (self, argv=None, filename=None):
         if not (argv or filename):
-            usage("A filename is required, either through argv or filename.")
+            self.error("A filename is required, either through argv or filename")
         elif not argv:
             argv = ['<%s.cmd_import>' % self_argv0, filename]
 
         (opts, args) = self.parse_argv(argv)
         if args is None:
-            usage("No filename given.")
+            self.error("No filename given")
         elif len(args) > 1:
-            usage("Too many arguments.")
+            self.error("Too many arguments")
         else:
             filename = args[0]
 
@@ -198,6 +206,7 @@ class Import (_Command):
                                                           dst.name,
                                                           base)
 
+_handler_order = []
 _handlers = {}
 
 def run_cmd (cmd, *args):
@@ -205,11 +214,21 @@ def run_cmd (cmd, *args):
     handler = handler_ctor()
     return handler.run(*args)
 
-def get_cmds ():
-    return _handlers.copy()
+
+def get_cmd_names ():
+    return _handler_order[:]
+
+def get_cmd (name):
+    return _handlers[name]
+
+def get_cmd_iter ():
+    for i in _handler_order:
+        yield (i, _handlers[i])
 
 def register_cmd (handler):
-    _handlers[handler.cmdname] = handler
+    n = handler.cmdname
+    _handlers[n] = handler
+    _handler_order.append(n)
 
 register_cmd(Import)
 register_cmd(Export)
