@@ -220,6 +220,7 @@ class Import (Command):
         print "Saved theme '%s' as '%s' (based on %s)" % (src.name,
                                                           dst.name,
                                                           base)
+        return 0
 
 _handler_order = []
 _handlers = {}
