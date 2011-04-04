@@ -122,6 +122,7 @@ class Export (Command):
         print "Exported theme '%s' as '%s' to %s." % (profile_name,
                                                       real_name,
                                                       filename)
+        return 0
 
 
 class Import (Command):
@@ -162,14 +163,14 @@ class Import (Command):
             io = core.terminal.get_io(opts.terminal)
         except (KeyError, ValueError), e:
             p_err(e.args[0])
-            sys.exit(2)
+            return 2
 
         try:
             themefile = core.ThemeFile(filename)
             src = themefile.read()
         except:
             p_err("Theme file %s does not seem to be valid." % filename)
-            sys.exit(1)
+            return 1
 
         if opts.credits:
             try:
@@ -179,10 +180,10 @@ class Import (Command):
                 else:
                     print c.encode(sys.stdout.encoding or core.CHARSET,
                                    'xmlcharrefreplace')
-                sys.exit(0)
+                return 0
             except Exception, e:
                 p_err("Error reading credits: '%s'" % e.args[0])
-                sys.exit(1)
+                return 1
 
         if not opts.base:
             dst = io.read_profile()
@@ -193,13 +194,13 @@ class Import (Command):
                 base = opts.base
             except:
                 p_err("The base theme %s does not exist." % opts.base)
-                sys.exit(1)
+                return 1
 
         dst_name = opts.name if opts.name else src.name
         if io.profile_exists(dst_name) and not opts.overwrite:
             p_err("The theme '%s' exists and --overwrite was not given." %
                   dst_name)
-            sys.exit(1)
+            return 1
 
         try:
             dst.update(src)
@@ -207,14 +208,14 @@ class Import (Command):
         except Exception, e:
             p_err("Error copying theme into profile:")
             p_err("\t%s" % e)
-            sys.exit(1)
+            return 1
 
         try:
             io.write_profile(dst)
         except Exception, e:
             p_err("Error writing new profile to storage:")
             p_err("\t%s" % e.args[0])
-            sys.exit(1)
+            return 1
 
         print "Saved theme '%s' as '%s' (based on %s)" % (src.name,
                                                           dst.name,
