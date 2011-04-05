@@ -31,7 +31,7 @@ except ImportError:
 CHARSET = 'utf-8'
 
 
-#{{{ Character set conversion for command line etc.
+#{{{ Character set conversion for command line, file names, etc.
 
 # Always return Unicode for the win32 dual-API
 def _sys_filename_win32 (name):
@@ -77,6 +77,11 @@ def win32_unicode_argv ():
         start = argc.value - len(sys.argv)
         return [argv[i] for i in
                 xrange(start, argc.value)]
+
+def fs_filename (name, allow_pathsep=False):
+    pathsep = '/\\' if allow_pathsep else ''
+    pat = r'[^\w.%s]' % pathsep
+    return re.sub(pat, '_', name, re.U)
 
 ##}}}
 
@@ -351,18 +356,29 @@ class ThemeFile (object):
         return any(True for x in _versions if x[0] == ver)
 
     def set_credits (self, src_filename): #{{{
-        self._set_file('credits', src_filename)
+        self._files['credits'] = self._read_fs(src_filename)
 
     def get_credits (self):
         if 'credits' not in self._files:
             self._files['credits'] = self._get_file('credits')
         return self._files['credits']
 
-    def _set_file (self, key, filename):
+    def read_ini (self, src_filename):
+        """Read a theme from an INI file (not a termitheme zip)."""
+
+        cp = ConfigParser.SafeConfigParser()
+        cp.read(src_filename)
+        return self.read_profile(cp)
+
+    def _read_fs (self, filename):
+        """Read a file from the filesystem in native encoding."""
+
         with codecs.open(sys_filename(filename), 'r', CHARSET) as f:
-            self._files['credits'] = f.read()
+            return f.read()
 
     def _get_file (self, key):
+        """Read a file from the zip archive at self.filename."""
+
         try:
             zf = zipfile.ZipFile(self.filename, 'r')
         except:

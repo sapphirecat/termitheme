@@ -222,6 +222,65 @@ class Import (Command):
                                                           base)
         return 0
 
+
+class Pack (Command):
+    cmdname = "pack"
+    usage_extended = "[-c file] [-o] [-w file] [-U] theme_file"
+    def _add_options (self, p):
+        ao = p.add_option
+        ao("-c", "--credits", dest="credits", metavar="FILE",
+           help="Include contents of FILE as credits in the exported file")
+        ao("-o", "--overwrite", dest="overwrite", action="store_true",
+           help="Delete existing output file, if any")
+        ao("-w", "--write", dest="filename", metavar="FILENAME",
+           help="Write output theme to FILENAME")
+        ao("-U", "--utf-8", "--utf8", dest="utf8", action="store_true",
+           help="Treat files as containing UTF-8 character data")
+
+    def run (self, argv=None, themefile=None):
+        if not (argv or themefile):
+            self.error("A filename is required, via argv or themefile")
+        elif not argv:
+            argv = ['<%s.cmd_pack>' % self_argv0, themefile]
+
+        (opts, args) = self.parse_argv(argv)
+        if args is None:
+            self.error("No theme.ini filename given")
+        elif not themefile:
+            themefile = args[0]
+
+        if opts.utf8:
+            core.CHARSET = 'utf-8'
+
+        try:
+            theme = core.ThemeFile(None)
+            profile = theme.read_ini(themefile)
+        except Exception, e:
+            p_err("Theme file %s does not seem to be valid." % themefile)
+            p_err("\t%s" % e.args[0])
+            return 1
+
+        if opts.credits:
+            try:
+                theme.set_credits(opts.credits)
+            except Exception, e:
+                p_err("Error reading credits: '%s'" % e.args[0])
+                return 1
+
+        if opts.filename:
+            theme.filename = opts.filename
+        else:
+            theme.filename = core.fs_filename(profile.name + '.zip')
+
+        if not opts.overwrite and os.path.exists(theme.filename):
+            p_err("File %s exists and overwrite option was not specified.")
+            return 1
+
+        theme.write(profile, opts.overwrite)
+
+        print "Packed theme '%s' into '%s'" % (profile.name, theme.filename)
+        return 0
+
 _handler_order = []
 _handlers = {}
 
@@ -250,4 +309,5 @@ def register_cmd (handler, force=False):
 
 register_cmd(Import)
 register_cmd(Export)
+register_cmd(Pack)
 
