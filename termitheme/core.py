@@ -458,7 +458,7 @@ class ThemeFile (object):
 
         if os.path.exists(self.filename) and not force:
             raise ValueError("File '%s' exists." % self.filename)
-        zf = zipfile.ZipFile(self.filename, 'w')
+        zf = zipfile.ZipFile(self.filename, 'w', zipfile.ZIP_DEFLATED)
         # main theme
         zf.writestr(self._zipinfo('theme.ini'), data.encode('utf-8'))
         for key, content in self._files.items(): # other archive files
