@@ -51,6 +51,55 @@ in your distribution.  The current compatibility goals are Ubuntu 8.04
 through 10.04 (Hardy Heron to Lucid Lynx).  Termitheme 1.5 has also been
 tested on Fedora 7 and 14, Debian 5.0/lenny, and Ubuntu 11.04/natty beta.
 
+Cygwin is not supported due to character set problems.
+
+
+NEW IN TERMITHEME 1.5
+=====================
+
+Command Line Reorganization
+---------------------------
+
+The termitheme command line has been reorganized for greater sensibility and
+extensibility.  The old import.py and export.py scripts have been moved into a
+single script, and a new positional parameter goes _before_ any other options
+to specify which subcommand to run.  In addition, the directory has been
+rearranged for greater "instant runnability" under more recent Python
+versions, so the typical way to run the main termitheme script without
+installation has also changed.  More on that below, but for now, examples:
+
+	**OLD:** ./import.py samples/BlackRock.zip
+	**NEW:** python . import samples/BlackRock.zip
+
+	**OLD:** ./export.py Default "Newspeak by Me.zip"
+	**NEW:** python . export -w "Newspeak by Me.zip" Default
+
+If the examples do not run and you're using Python 2.5, you will need to
+replace `python .` with `python __main__.py`.
+
+Option Changes
+--------------
+
+* The optional zipfile name, previously given to export as a second positional
+  argument, has been replaced by the `-w` option.  The old method is possible,
+	but deprecated, and `-w` takes precedence if both are specified.
+* export now accepts a `-o` option.
+
+New Commands
+------------
+
+`version` simply displays the version.
+
+	python . version
+
+`pack` reads a given theme file, in any version that termitheme supports,
+rewrites it with sections for all termitheme versions, and writes the result
+into a termitheme file.  In essence, `pack` allows you to compile themes by
+hand.
+
+	python . pack theme.ini
+	python . pack -c myfile -w "Legacy Deco.zip" legacy-deco.ini
+
 
 RUNNING
 =======
@@ -150,10 +199,10 @@ To export a theme, use the export command with a profile name:
 
 	$ python . export Minotaur
 
-A filename can follow the theme name, to save it to a specific file (but the
-theme will still import under the name Minotaur by default):
+The --write (-w) option allows for saving it to a specific file (but the theme
+will still import under the name Minotaur by default):
 
-	$ python . export Minotaur Taurus.zip
+	$ python . export -w Taurus.zip Minotaur
 
 The theme name inside the exported file can be set with the --name (-n)
 option. This will produce Taurus.zip:
@@ -163,7 +212,7 @@ option. This will produce Taurus.zip:
 Combining the previous two examples, to produce a theme named Taurus inside
 Bullish.zip:
 
-	$ python . export -n Taurus Minotaur Bullish.zip
+	$ python . export -n Taurus -w Bullish.zip Minotaur
 
 To include a message to be printed with import -c, create a file
 containing the credits information, and use the --credits (-c) option of
@@ -177,8 +226,28 @@ case, use the --utf-8 (-U) switch to let the export command know:
 
 	$ python . export -U -c CREDITS Minotaur
 
-For more details on termitheme's character set handling, see the next
-section.
+For more details on termitheme's character set handling, see the Character
+Sets section of this document.
+
+
+Pack Examples
+-------------
+
+If you construct a theme by hand, use the pack command and the INI file to
+build the termitheme theme file:
+
+	$ python . pack industrial.ini
+
+Assuming that industrial.ini contains a theme name of "Industrial", this will
+produce a file named "Industrial.zip".  Several options, notably credits,
+filename to write, and forced Unicode mode can be specified exactly as they
+can with export:
+
+	$ python . pack -c CREDITS industrial.ini
+	$ python . pack -w Industrial-beta1.zip industrial.ini
+	$ python . pack -c CREDITS -U industrial.ini
+
+In this case, -U also affects the theme file (industrial.ini in the example).
 
 
 Character Sets
@@ -218,11 +287,11 @@ SUBMITTING THEMES TO THE GALLERY
 
 Send the following information to devel at sapphirepaw.org:
 
-	* The theme file, as an attachment or link
-	* The desired license, e.g. CC-BY-SA 3.0
-	* Attribution name
-	* Preview link, such as a screenshot or blog post (this must be
-	  a link, as screenshots will not be hosted)
+* The theme file, as an attachment or link
+* The desired license, e.g. CC-BY-SA 3.0
+* Attribution name
+* Preview link, such as a screenshot or blog post (this must be
+  a link, as screenshots will not be hosted)
 
 If any of this information is not included, then the theme cannot be
 published.
