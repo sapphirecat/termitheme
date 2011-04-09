@@ -44,6 +44,14 @@ Cygwin is not supported due to character set problems.
 NEW IN TERMITHEME 1.5
 =====================
 
+Installability
+--------------
+
+While termitheme can still be run directly from its unpacked directory, it
+now includes a distutils-based setup.py file for supporting standard
+installation, if desired.
+
+
 Command Line Reorganization
 ---------------------------
 
@@ -64,7 +72,9 @@ installation has also changed.  More on that below, but for now, examples:
 The new structure is designed to be compatible with `python .` and the
 `python -m termitheme_lib` mechanisms in supported versions of python, as
 well as allowing the intuitive and simple method of using `./termitheme` to
-work on all versions.
+work on all versions.  Finally, when it's actually installed, bin/termitheme
+can't try to `import termitheme`, or it will attempt to import _itself,_ so
+the core library has been renamed to termitheme_lib.
 
 Option Changes
 --------------
