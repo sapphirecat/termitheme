@@ -91,7 +91,7 @@ class Export (Command):
             elif len(args) == 2:
                 filename = args.pop()
             else:
-                filename = real_name + '.zip'
+                filename = core.fs_filename(real_name + '.zip')
 
         if opts.utf8:
             core.CHARSET = 'utf-8'
