@@ -13,24 +13,11 @@ configuration.
 QUICK START
 ===========
 
-Python 2.5
-----------
-
 	$ unzip termitheme-1.5.zip
 	$ cd termitheme-1.5
-	$ python __main__.py import samples/BlackRock.zip
+	$ ./termitheme import samples/BlackRock.zip
 	Saved theme 'BlackRock' as 'BlackRock' (based on Default)
-	$ python __main__.py export -n Newspeak BlackRock
-	Exported theme 'BlackRock' as 'Newspeak' to Newspeak.zip
-
-Python 2.6/2.7
---------------
-
-	$ unzip termitheme-1.5.zip
-	$ cd termitheme-1.5
-	$ python . import samples/BlackRock.zip
-	Saved theme 'BlackRock' as 'BlackRock' (based on Default)
-	$ python . export -n Newspeak BlackRock
+	$ ./termitheme export -n Newspeak BlackRock
 	Exported theme 'BlackRock' as 'Newspeak' to Newspeak.zip
 
 
@@ -69,13 +56,15 @@ versions, so the typical way to run the main termitheme script without
 installation has also changed.  More on that below, but for now, examples:
 
 	**OLD:** ./import.py samples/BlackRock.zip
-	**NEW:** python . import samples/BlackRock.zip
+	**NEW:** ./termitheme import samples/BlackRock.zip
 
 	**OLD:** ./export.py Default "Newspeak by Me.zip"
-	**NEW:** python . export -w "Newspeak by Me.zip" Default
+	**NEW:** ./termitheme export -w "Newspeak by Me.zip" Default
 
-If the examples do not run and you're using Python 2.5, you will need to
-replace `python .` with `python __main__.py`.
+The new structure is designed to be compatible with `python .` and the
+`python -m termitheme_lib` mechanisms in supported versions of python, as
+well as allowing the intuitive and simple method of using `./termitheme` to
+work on all versions.
 
 Option Changes
 --------------
@@ -90,15 +79,15 @@ New Commands
 
 `version` simply displays the version.
 
-	python . version
+	./termitheme version
 
 `pack` reads a given theme file, in any version that termitheme supports,
 rewrites it with sections for all termitheme versions, and writes the result
 into a termitheme file.  In essence, `pack` allows you to compile themes by
 hand.
 
-	python . pack theme.ini
-	python . pack -c myfile -w "Legacy Deco.zip" legacy-deco.ini
+	./termitheme pack theme.ini
+	./termitheme pack -c myfile -w "Legacy Deco.zip" legacy-deco.ini
 
 
 RUNNING
@@ -112,43 +101,17 @@ termitheme module; and the all-important LICENSE file.
 After extracting the zip file, open a terminal or command prompt and cd to
 the newly created termitheme-VERSION folder.
 
-
-A Word About Python Versions
-----------------------------
-
-Due to evolving support for module imports over the supported versions of
-Python, there are several ways to run termitheme in-place.  The first way,
-which will work on any version of Python, is to run \_\_main\_\_.py with Python.
-For example:
-
-	$ python __main__.py import samples/BlackRock.zip
-
-Python 2.6 also supports running a directory as a file, using the
-\_\_main\_\_.py file found in that directory.  Thus, the above example can be
-simplified to:
-
-	$ python . import samples/BlackRock.zip
-
-If you choose to install termitheme, then the command on all versions
-becomes:
-
-	$ termitheme import samples/BlackRock.zip
-
-All examples in the sections below are given with the Python 2.6-compatible
-syntax.  You will have to adjust the commands accordingly if using Python
-2.5, or the installed version.
-
 Commands beginning with "python" are given for Gnome with a compatible
 python version in the default path. You may need to precede the commands
 shown with a specific version or full path, such as 'python2', 'python2.7',
 or "C:\Python26\python". In that case, the first import example might
 become:
 
-	$ python2.7 . import samples/BlackRock.zip
+	$ python2.7 termitheme import samples/BlackRock.zip
 
 Or on Windows, using a Python 2.6 installation:
 
-	$ C:\Python26\python . import samples/BlackRock.zip 
+	$ C:\Python26\python termitheme import samples/BlackRock.zip 
 
 
 Import Examples
@@ -157,35 +120,35 @@ Import Examples
 To load a theme, use the import command and give it the theme file as the
 argument:
 
-	$ python . import samples/BlackRock.zip
+	$ ./termitheme import samples/BlackRock.zip
 
 You can import it under a different name with the --name (-n) option:
 
-	$ python . import --name "Dark Heat" samples/BlackRock.zip
+	$ ./termitheme import --name "Dark Heat" samples/BlackRock.zip
 
 For settings not stored in the theme file, such as select-by-word characters
 and compatibility options, import copies the settings from the default
 profile. To use a different profile, use the --base (-b) option:
 
-	$ python . import --base Minotaur samples/BlackRock.zip
+	$ ./termitheme import --base Minotaur samples/BlackRock.zip
 
 If you already have a profile named BlackRock and you try to import a theme
 named BlackRock, termitheme will keep the existing profile data by default.
 If you wish to replace the profile with the data in the theme file, use the
 --overwrite (-o) switch:
 
-	$ python . import --overwrite samples/BlackRock.zip
+	$ ./termitheme import --overwrite samples/BlackRock.zip
 
 Of course, all of these options may be combined. To load a theme from
 BlackRock.zip, basing it on the Minotaur profile, naming it Dark Heat, and
 possibly overwriting an existing Dark Heat theme:
 
-	$ python . import -o -b Minotaur -n "Dark Heat" samples/BlackRock.zip
+	$ ./termitheme import -o -b Minotaur -n "Dark Heat" samples/BlackRock.zip
 
 There is one other option: as of termitheme-1.2, theme files may contain
 credits, which can be viewed with the --credits (-c) switch:
 
-	$ python . import -c samples/BlackRock.zip
+	$ ./termitheme import -c samples/BlackRock.zip
 
 When -c is given, the theme credits are printed, and termitheme quits
 instead of taking any action. The -c switch takes precedence over the other
@@ -197,34 +160,34 @@ Export Examples
 
 To export a theme, use the export command with a profile name:
 
-	$ python . export Minotaur
+	$ ./termitheme export Minotaur
 
 The --write (-w) option allows for saving it to a specific file (but the theme
 will still import under the name Minotaur by default):
 
-	$ python . export -w Taurus.zip Minotaur
+	$ ./termitheme export -w Taurus.zip Minotaur
 
 The theme name inside the exported file can be set with the --name (-n)
 option. This will produce Taurus.zip:
 
-	$ python . export -n Taurus Minotaur
+	$ ./termitheme export -n Taurus Minotaur
 
 Combining the previous two examples, to produce a theme named Taurus inside
 Bullish.zip:
 
-	$ python . export -n Taurus -w Bullish.zip Minotaur
+	$ ./termitheme export -n Taurus -w Bullish.zip Minotaur
 
 To include a message to be printed with import -c, create a file
 containing the credits information, and use the --credits (-c) option of
 export to include it:
 
-	$ python . export -c CREDITS Minotaur
+	$ ./termitheme export -c CREDITS Minotaur
 
 This file should be in the encoding of your current locale on Unix, or the
 ANSI code page on Windows.  The credits can also be in UTF-8 format; in that
 case, use the --utf-8 (-U) switch to let the export command know:
 
-	$ python . export -U -c CREDITS Minotaur
+	$ ./termitheme export -U -c CREDITS Minotaur
 
 For more details on termitheme's character set handling, see the Character
 Sets section of this document.
@@ -236,16 +199,16 @@ Pack Examples
 If you construct a theme by hand, use the pack command and the INI file to
 build the termitheme theme file:
 
-	$ python . pack industrial.ini
+	$ ./termitheme pack industrial.ini
 
 Assuming that industrial.ini contains a theme name of "Industrial", this will
 produce a file named "Industrial.zip".  Several options, notably credits,
 filename to write, and forced Unicode mode can be specified exactly as they
 can with export:
 
-	$ python . pack -c CREDITS industrial.ini
-	$ python . pack -w Industrial-beta1.zip industrial.ini
-	$ python . pack -c CREDITS -U industrial.ini
+	$ ./termitheme pack -c CREDITS industrial.ini
+	$ ./termitheme pack -w Industrial-beta1.zip industrial.ini
+	$ ./termitheme pack -c CREDITS -U industrial.ini
 
 In this case, -U also affects the theme file (industrial.ini in the example).
 

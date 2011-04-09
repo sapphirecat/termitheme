@@ -1,1 +1,1 @@
-bin/termitheme
+termitheme

@@ -8,10 +8,11 @@ import os.path
 import time
 
 PKG_NAME = 'termitheme'
+LIB_NAME = PKG_NAME + '_lib'
 PKG_URL = 'http://www.sapphirepaw.org/termitheme/'
 VERSION = '1.5a'
 CODENAME = 'By Humans For Humans'
-_VERSION_FILE = PKG_NAME + '/version.py'
+_VERSION_FILE = LIB_NAME + '/version.py'
 
 short_desc = 'Terminal theme importer/exporter'
 long_desc = """Imports and exports themes to and from gnome-terminal on Unix
@@ -71,9 +72,9 @@ def do_setup ():
           author='Chad Daelhousen',
           author_email='release@sapphirepaw.org',
           url=PKG_URL,
-          scripts=['bin/' + PKG_NAME],
+          scripts=[PKG_NAME],
           license='Apache 2.0',
-          packages=[PKG_NAME],
+          packages=[LIB_NAME],
           classifiers=classifiers)
 
 def main(argv=None):

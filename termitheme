@@ -4,13 +4,14 @@ import os
 import runpy
 import sys
 
-PKG = 'termitheme'
+ME = 'termitheme'
+PKG = 'termitheme_lib'
 
 major, minor, micro, level, serial = sys.version_info
 if major > 2:
-    raise Exception("This version of %s does not run under Python 3.x" % PKG)
+    raise Exception("This version of %s does not run under Python 3.x" % ME)
 if major < 2 or minor < 5 or (minor == 5 and level < "candidate"):
-    raise Exception("This version of %s requires Python 2 >= 2.5.0" % PKG)
+    raise Exception("This version of %s requires Python 2 >= 2.5.0" % ME)
 
 try:
     run_globals = runpy.run_module(PKG, run_name='__main__', alter_sys=True)

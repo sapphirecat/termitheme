@@ -1,14 +1,18 @@
+from __future__ import absolute_import
 import locale
 import os.path
 import sys
-from termitheme import core, commands, version
+from . import core, commands, version
 
 VERSION = version.version
 if version.revision:
     VERSION += " [rev " + version.revision + "]"
 
 def usage (argv, e=None):
-    prog = os.path.basename(argv[0])
+    if __name__ == '__main__':
+        prog = 'termitheme'
+    else:
+        prog = os.path.basename(argv[0])
     if e:
         print "Error: %s" % e.args[0]
     else:
