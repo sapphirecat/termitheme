@@ -56,6 +56,8 @@ class Export (Command):
         ao = p.add_option
         ao("-c", "--credits", dest="credits", metavar="FILE",
            help="Include contents of FILE as credits in the exported file")
+        ao("-m", "--min-version", dest="min_version", metavar="VERSION",
+           help="Limit compatibility of to termitheme >= VERSION")
         ao("-n", "--name", dest="name", metavar="NAME",
            help="Set the profile name to NAME in the exported file")
         ao("-o", "--overwrite", dest="overwrite", action="store_true",
@@ -113,6 +115,13 @@ class Export (Command):
             themefile = core.ThemeFile(filename)
             if opts.credits:
                 themefile.set_credits(opts.credits)
+
+            try:
+                themefile.min_version = opts.min_version
+            except ValueError:
+                p_err("Could not parse version string.")
+                return 2
+
             themefile.write(dst, opts.overwrite)
         except Exception, e:
             p_err("Failed to write theme to '%s':" % filename)

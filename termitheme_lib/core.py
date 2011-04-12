@@ -348,6 +348,19 @@ class ThemeFile (object):
         self._profile_ctor = profile_class
 
         self._files = dict()
+        self._min_version = _versions[-1][0]
+
+    def get_min_version (self):
+        return self._min_version
+    def set_min_version (self, min_ver):
+        if not min_ver:
+            self._min_version = _versions[-1][0]
+        else:
+            mv = "%.1f" % float(min_ver)
+            mv = mv.replace(".", "_").rstrip("_0")
+            self._min_version = mv
+            return
+    min_version = property(get_min_version, set_min_version)
 
     def get_versions (self):
         return [x[0] for x in _versions]
@@ -452,8 +465,12 @@ class ThemeFile (object):
     def write (self, profile, force=False):
         """Write the profile into self.filename."""
 
-        data = '\n'.join([self._format_version(profile, ver, spec)
-                          for ver, spec in _versions])
+        datasets = []
+        for ver, spec in _versions:
+            datasets.append(self._format_version(profile, ver, spec))
+            if self._min_version and ver <= self._min_version:
+                break
+        data = '\n'.join(datasets)
         spec = _versions[0][1]
 
         if os.path.exists(self.filename) and not force:
