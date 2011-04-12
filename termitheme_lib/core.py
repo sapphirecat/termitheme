@@ -350,9 +350,9 @@ class ThemeFile (object):
         self._files = dict()
         self._min_version = _versions[-1][0]
 
-    def get_min_version (self):
+    def _get_min_version (self):
         return self._min_version
-    def set_min_version (self, min_ver):
+    def _set_min_version (self, min_ver):
         if not min_ver:
             self._min_version = _versions[-1][0]
         else:
@@ -360,7 +360,7 @@ class ThemeFile (object):
             mv = mv.replace(".", "_").rstrip("_0")
             self._min_version = mv
             return
-    min_version = property(get_min_version, set_min_version)
+    min_version = property(_get_min_version, _set_min_version)
 
     def get_versions (self):
         return [x[0] for x in _versions]
