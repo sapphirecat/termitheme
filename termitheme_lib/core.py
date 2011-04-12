@@ -11,7 +11,6 @@ import os.path # both
 import re # here
 import StringIO # here; Python2.5 compatible hackery
 import sys # both
-import time # here
 import zipfile # here
 
 # PLATFORM SUPPORT
@@ -498,8 +497,8 @@ class ThemeFile (object):
     def _zipinfo (self, filename):
         info = zipfile.ZipInfo()
         info.filename = filename
-        # whoever designed this api is ridiculous
-        now = datetime.datetime.fromtimestamp(time.time())
+        # No mtime_utc for credits.txt: the stat result is os-dependent.
+        now = datetime.datetime.now()
         info.date_time = (now.year, now.month, now.day,
                           now.hour, now.minute, now.second)
         info.compress_type = zipfile.ZIP_DEFLATED
