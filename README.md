@@ -83,6 +83,8 @@ Option Changes
   argument, has been replaced by the `-w` option.  The old method is possible,
 	but deprecated, and `-w` takes precedence if both are specified.
 * export now accepts a `-o` option.
+* export accepts a `-m VERSION` option to omit compatibility with termitheme
+  versions less than VERSION in the exported theme file.
 
 New Commands
 ------------
