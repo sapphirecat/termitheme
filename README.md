@@ -1,3 +1,9 @@
+DEAD PROJECT ALERT
+==================
+
+This project died with Gnome 2.x.
+
+
 OVERVIEW
 ========
 
